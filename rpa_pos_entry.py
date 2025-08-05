@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
+"""POS entry automation script with UTF-8/Turkish support."""
+
 import argparse
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -15,12 +19,17 @@ from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 
 
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr.reconfigure(encoding="utf-8")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("rpa.log", encoding="utf-8"),
-        logging.StreamHandler()
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
@@ -34,16 +43,18 @@ def read_excel(path: Path) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
 
     column_map = {
-        "Tarih": "tarih",
-        "Firma": "firma",
-        "Tutar": "tutar",
-        "Açıklama": "aciklama",
-        "Döviz": "doviz",
-        "Vade Tarihi": "vade_tarihi",
+        "tarih": "tarih",
+        "firma": "firma",
+        "tutar": "tutar",
+        "açıklama": "aciklama",
+        "aciklama": "aciklama",
+        "döviz": "doviz",
+        "doviz": "doviz",
+        "vade tarihi": "vade_tarihi",
     }
 
-    raw_header = [cell for cell in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
-    header = [column_map.get(cell, cell) for cell in raw_header]
+    raw_header = [str(cell).strip() if cell else "" for cell in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
+    header = [column_map.get(h.casefold(), h) for h in raw_header]
 
     for row in sheet.iter_rows(min_row=2, values_only=True):
         item: Dict[str, Any] = {}
@@ -74,7 +85,7 @@ def open_application(driver: webdriver.Chrome, html_path: Path) -> None:
 def navigate_to_pos(driver: webdriver.Chrome) -> None:
     """Navigate to Finance > Tahsilat and open POS entry modal."""
     menu_selector = "div.menu-item[data-menu='finans-tahsilat']"
-    pos_icon_selector = "div.ribbon-icon[data-tooltip='Pos Giri\u015fi']"
+    pos_icon_selector = "div.ribbon-icon[data-tooltip='Pos Girişi']"
     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, menu_selector))).click()
     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, pos_icon_selector))).click()
     WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "posModal")))
