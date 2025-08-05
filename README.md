@@ -17,13 +17,12 @@ pip install -r requirements.txt
 ## Kullanım
 
 1. POS verilerini `pos_data.xlsx` adlı bir Excel dosyasına girin. Dosya aşağıdaki sütunları içermelidir:
-   - `tarih` (YYYY-MM-DD)
-   - `seri`
-   - `kart_hesap`
-   - `aciklama`
-   - `tutar`
-   - `doviz`
-   - `vade_tarihi` (opsiyonel)
+   - `Tarih` (YYYY-MM-DD)
+   - `Firma`
+   - `Tutar`
+   - `Açıklama`
+   - `Döviz` (opsiyonel)
+   - `Vade Tarihi` (opsiyonel)
 2. Otomasyonu çalıştırın:
 
 ```bash

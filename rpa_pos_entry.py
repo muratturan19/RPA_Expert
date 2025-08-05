@@ -32,7 +32,19 @@ def read_excel(path: Path) -> List[Dict[str, Any]]:
     workbook = load_workbook(path)
     sheet = workbook.active
     rows: List[Dict[str, Any]] = []
-    header = [cell for cell in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
+
+    column_map = {
+        "Tarih": "tarih",
+        "Firma": "firma",
+        "Tutar": "tutar",
+        "Açıklama": "aciklama",
+        "Döviz": "doviz",
+        "Vade Tarihi": "vade_tarihi",
+    }
+
+    raw_header = [cell for cell in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
+    header = [column_map.get(cell, cell) for cell in raw_header]
+
     for row in sheet.iter_rows(min_row=2, values_only=True):
         item: Dict[str, Any] = {}
         for key, value in zip(header, row):
@@ -71,13 +83,12 @@ def navigate_to_pos(driver: webdriver.Chrome) -> None:
 
 def fill_pos_form(driver: webdriver.Chrome, data: Dict[str, Any]) -> None:
     """Fill POS entry form and save."""
-    driver.find_element(By.ID, "posTarih").clear()
-    driver.find_element(By.ID, "posTarih").send_keys(str(data.get("tarih", "")))
+    driver.find_element(By.ID, "pos-tarih").clear()
+    driver.find_element(By.ID, "pos-tarih").send_keys(str(data.get("tarih", "")))
 
-    driver.find_element(By.ID, "posSeri").send_keys(str(data.get("seri", "")))
-    driver.find_element(By.ID, "posKartHesap").send_keys(str(data.get("kart_hesap", "")))
-    driver.find_element(By.ID, "posAciklama").send_keys(str(data.get("aciklama", "")))
-    driver.find_element(By.ID, "posTutar").send_keys(str(data.get("tutar", "")))
+    driver.find_element(By.ID, "pos-firma").send_keys(str(data.get("firma", "")))
+    driver.find_element(By.ID, "pos-aciklama").send_keys(str(data.get("aciklama", "")))
+    driver.find_element(By.ID, "pos-tutar").send_keys(str(data.get("tutar", "")))
 
     doviz = data.get("doviz")
     if doviz:
