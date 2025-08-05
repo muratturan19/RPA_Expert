@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preston XI - Kurumsal Kaynak Yönetim Sistemi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-size: 11px;
+            background: linear-gradient(to bottom, #e4f4fd 0%, #d6ebf7 100%);
+            overflow: hidden;
+        }
+
+        /* Window Chrome */
+        .window-chrome {
+            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            color: white;
+            font-size: 12px;
+            border-bottom: 1px solid #1e4d72;
+        }
+
+        .window-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .window-icon {
+            width: 16px;
+            height: 16px;
+            background: #ffd700;
+            border-radius: 2px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .window-controls button {
+            width: 20px;
+            height: 16px;
+            border: none;
+            font-size: 10px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .window-controls button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Main Menu Bar */
+        .menu-bar {
+            background: linear-gradient(to bottom, #f0f8ff 0%, #e1f0ff 50%, #d0e8ff 100%);
+            border-bottom: 1px solid #b8d4f0;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+        }
+
+        .menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 11px;
+            color: #333;
+            position: relative;
+            transition: all 0.1s;
+        }
+
+        .menu-item:hover {
+            background: linear-gradient(to bottom, #fff 0%, #f0f8ff 100%);
+            border: 1px solid #b8d4f0;
+            padding: 3px 11px;
+        }
+
+        .menu-item.active {
+            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
+            color: white;
+            border: 1px solid #1e4d72;
+            padding: 3px 11px;
+        }
+
+        /* Ribbon/Toolbar */
+        .ribbon {
+            background: linear-gradient(to bottom, #f8fcff 0%, #e8f4ff 100%);
+            border-bottom: 1px solid #c0d8f0;
+            height: 80px;
+            padding: 4px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+        }
+
+        .ribbon-group {
+            border: 1px solid #d0e0f0;
+            border-radius: 3px;
+            padding: 4px;
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .ribbon-group-header {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .ribbon-icons {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .ribbon-icon {
+            width: 32px;
+            height: 32px;
+            border: 1px solid transparent;
+            border-radius: 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-size: 24px 24px;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: all 0.1s;
+            position: relative;
+        }
+
+        .ribbon-icon:hover {
+            border: 1px solid #4a90e2;
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .ribbon-icon:active {
+            background-color: rgba(74, 144, 226, 0.2);
+        }
+
+        .ribbon-icon::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 9px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .ribbon-icon:hover::after {
+            opacity: 1;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            height: calc(100vh - 134px - 24px);
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .toolbar {
+            background: linear-gradient(to bottom, #f5f5f5 0%, #e8e8e8 100%);
+            border-bottom: 1px solid #ccc;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 4px;
+        }
+
+        .toolbar-button {
+            padding: 2px 8px;
+            border: 1px solid #aaa;
+            background: linear-gradient(to bottom, #fff 0%, #f0f0f0 100%);
+            font-size: 10px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        .toolbar-button:hover {
+            background: linear-gradient(to bottom, #f0f8ff 0%, #e0f0ff 100%);
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #ccc;
+            margin: 0 4px;
+        }
+
+        /* Data Grid */
+        .grid-container {
+            flex: 1;
+            overflow: auto;
+            border: 1px solid #ccc;
+            position: relative;
+        }
+
+        .grid {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .grid th {
+            background: linear-gradient(to bottom, #f8f8f8 0%, #e8e8e8 100%);
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            text-align: left;
+            font-weight: normal;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .grid th:hover {
+            background: linear-gradient(to bottom, #e8f4ff 0%, #d8e8ff 100%);
+        }
+
+        .grid td {
+            border: 1px solid #e0e0e0;
+            padding: 3px 8px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .grid tr:nth-child(even) {
+            background: #f8f8f8;
+        }
+
+        .grid tr:hover {
+            background: #e8f4ff;
+        }
+
+        .grid tr.selected {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .grid tr.selected td {
+            border-color: #2e5f95;
+        }
+
+        .grid td.editable:hover {
+            background: #fff8dc;
+            border: 2px solid #ffd700;
+            padding: 2px 7px;
+        }
+
+        .grid td input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 11px;
+            padding: 0;
+            outline: none;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
+            border-top: 1px solid #ccc;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 20px;
+            font-size: 10px;
+            color: #666;
+        }
+
+        .status-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-separator {
+            width: 1px;
+            height: 16px;
+            background: #bbb;
+        }
+
+        /* Modal Dialogs */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border: 2px solid #4a90e2;
+            border-radius: 4px;
+            min-width: 400px;
+            max-width: 80vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
+            color: white;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+        }
+
+        .modal-body {
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #4a90e2;
+            outline: none;
+            box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
+        }
+
+        .modal-buttons {
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+            font-size: 11px;
+            cursor: pointer;
+            background: linear-gradient(to bottom, #fff 0%, #f0f0f0 100%);
+        }
+
+        .btn:hover {
+            background: linear-gradient(to bottom, #f0f8ff 0%, #e0f0ff 100%);
+            border-color: #4a90e2;
+        }
+
+        .btn.primary {
+            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
+            color: white;
+            border-color: #1e4d72;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(to bottom, #5ba0f2 0%, #3e6fa5 100%);
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+            padding: 2px 0;
+            min-width: 150px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1001;
+            font-size: 11px;
+        }
+
+        .context-menu-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .context-menu-item:hover {
+            background: #e8f4ff;
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 2px 0;
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #4a90e2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .ribbon {
+                height: auto;
+                flex-wrap: wrap;
+            }
+            
+            .ribbon-group {
+                min-width: 100px;
+            }
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 16px;
+            height: 16px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Window Chrome -->
+    <div class="window-chrome">
+        <div class="window-title">
+            <div class="window-icon"></div>
+            <span>Banka Hesap İşleme - Preston XI Kurumsal Kaynak Yönetim Sistemi</span>
+        </div>
+        <div class="window-controls">
+            <button>-</button>
+            <button>□</button>
+            <button>×</button>
+        </div>
+    </div>
+
+    <!-- Main Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item" data-menu="muhasebe">Muhasebe</div>
+        <div class="menu-item" data-menu="gorgider">Gör / Gider</div>
+        <div class="menu-item" data-menu="budce">Büdçe</div>
+        <div class="menu-item" data-menu="finans-odeme">Finans - Ödeme</div>
+        <div class="menu-item" data-menu="finans-tahsilat">Finans - Tahsilat</div>
+        <div class="menu-item" data-menu="finans-ize">Finans - İze</div>
+        <div class="menu-item" data-menu="sarmana">Şarmana</div>
+        <div class="menu-item" data-menu="satis">Satış</div>
+        <div class="menu-item" data-menu="stok">Stok</div>
+        <div class="menu-item" data-menu="uretim">Üretim</div>
+        <div class="menu-item" data-menu="personel">Personel</div>
+        <div class="menu-item" data-menu="sabit-kiymet">Sabit Kıymet</div>
+        <div class="menu-item" data-menu="hesap-tablari">Hesap Tabları</div>
+        <div class="menu-item" data-menu="diger">Diğer</div>
+    </div>
+
+    <!-- Ribbon/Toolbar -->
+    <div class="ribbon" id="ribbon">
+        <!-- Default ribbon content -->
+        <div class="ribbon-group">
+            <div class="ribbon-group-header">Genel</div>
+            <div class="ribbon-icons">
+                <div class="ribbon-icon" data-tooltip="Yeni Kayıt" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z%22/></svg>')"></div>
+                <div class="ribbon-icon" data-tooltip="Kaydet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z%22/></svg>')"></div>
+                <div class="ribbon-icon" data-tooltip="Sil" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23d32f2f%22 viewBox=%220 0 24 24%22><path d=%22M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z%22/></svg>')"></div>
+            </div>
+        </div>
+        <div class="ribbon-group">
+            <div class="ribbon-group-header">Araçlar</div>
+            <div class="ribbon-icons">
+                <div class="ribbon-icon" data-tooltip="Yazdır" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z%22/></svg>')"></div>
+                <div class="ribbon-icon" data-tooltip="Excel" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                <div class="ribbon-icon" data-tooltip="Filtre" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="toolbar">
+            <div class="toolbar-button">Kayıt</div>
+            <div class="toolbar-button">Belge Fişi ve İşlemler</div>
+            <div class="toolbar-button">Özel Fişler</div>
+            <div class="toolbar-separator"></div>
+            <select style="font-size: 10px;">
+                <option>Y</option>
+            </select>
+            <div class="toolbar-button">Temelke</div>
+            <div class="toolbar-button">Zirve</div>
+        </div>
+
+        <div class="grid-container">
+            <table class="grid" id="mainGrid">
+                <thead>
+                    <tr>
+                        <th style="width: 80px">Hesaplat Tar</th>
+                        <th style="width: 60px">Seri</th>
+                        <th style="width: 80px">No</th>
+                        <th style="width: 100px">Referans No</th>
+                        <th style="width: 120px">Kara Hesap</th>
+                        <th style="width: 150px">Karta Hesap Kodu Hesap Adı</th>
+                        <th style="width: 100px">Borç Tutarı</th>
+                        <th style="width: 100px">Alacak Tutarı</th>
+                        <th style="width: 100px">Doviz Cinsi</th>
+                        <th style="width: 100px">Doviz Tutarı</th>
+                        <th style="width: 100px">Belge Tarihi</th>
+                        <th style="width: 120px">Açıklama</th>
+                        <th style="width: 150px">Detay Tarih</th>
+                        <th style="width: 100px">Özel Kod</th>
+                        <th style="width: 80px">Yaş Ay</th>
+                        <th style="width: 100px">Vade Tarihi</th>
+                        <th style="width: 100px">Özel Fişler No</th>
+                    </tr>
+                </thead>
+                <tbody id="gridBody">
+                    <!-- Sample data matching the original -->
+                    <tr>
+                        <td>25.07.2025</td>
+                        <td>BNK-FT</td>
+                        <td>44633</td>
+                        <td>Banka</td>
+                        <td>6250744</td>
+                        <td>GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620091 İNS</td>
+                        <td>562.12</td>
+                        <td>0.00</td>
+                        <td>0.00</td>
+                        <td>Banka Virman</td>
+                        <td>GARANTİ BANKASI 620091 İNS GARANTİ 620091 6250744 620</td>
+                        <td>25.07.2025</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>25.07.2025</td>
+                        <td>BNK-FT</td>
+                        <td>44632</td>
+                        <td>Banka</td>
+                        <td>6250744</td>
+                        <td>GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ</td>
+                        <td>1.301.96</td>
+                        <td>0.00</td>
+                        <td>0.00</td>
+                        <td>Banka Virman</td>
+                        <td>GARANTİ BANKASI 620091 İNS GARANTİ 620091 BAĞIŞ</td>
+                        <td>25.07.2025</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>25.07.2025</td>
+                        <td>BNK-FT</td>
+                        <td>44631</td>
+                        <td>Banka</td>
+                        <td>6250893</td>
+                        <td>GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ URDU HAF</td>
+                        <td>130.66</td>
+                        <td>0.00</td>
+                        <td>0.00</td>
+                        <td>Banka Virman</td>
+                        <td>GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620893</td>
+                        <td>25.07.2025</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <!-- Add more sample rows -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-section">
+            <span>Toplam</span>
+            <span>430.136,218.20</span>
+        </div>
+        <div class="status-separator"></div>
+        <div class="status-section">
+            <span>Alacak Toplamı</span>
+            <span>430.171,600.83</span>
+        </div>
+        <div class="status-separator"></div>
+        <div class="status-section">
+            <span>Borç Toplamı</span>
+            <span>0.00</span>
+        </div>
+        <div class="status-separator"></div>
+        <div class="status-section">
+            <span>Bakiye</span>
+            <span>225,359.36</span>
+        </div>
+        <div class="status-separator"></div>
+        <div class="status-section">
+            <span>Ülkeli BUDGET</span>
+        </div>
+        <div style="margin-left: auto;">
+            <span>25.07.2025</span>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="posModal">
+            <div class="modal-header">
+                <span>POS Giriş Formu</span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tarih:</label>
+                    <input type="date" id="posTarih" value="2025-07-25" required>
+                </div>
+                <div class="form-group">
+                    <label>Seri:</label>
+                    <select id="posSeri" required>
+                        <option value="">Seçiniz...</option>
+                        <option value="POS">POS</option>
+                        <option value="BNK">BNK</option>
+                        <option value="NAK">NAK</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Belge No:</label>
+                    <input type="text" id="posBelgeNo" placeholder="Otomatik" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Kart Hesap Kodu:</label>
+                    <input type="text" id="posKartHesap" placeholder="Hesap kodunu girin..." required>
+                </div>
+                <div class="form-group">
+                    <label>Açıklama:</label>
+                    <input type="text" id="posAciklama" placeholder="İşlem açıklaması..." required>
+                </div>
+                <div class="form-group">
+                    <label>Tutar:</label>
+                    <input type="number" id="posTutar" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Döviz Cinsi:</label>
+                    <select id="posDoviz">
+                        <option value="TRY">TRY - Türk Lirası</option>
+                        <option value="USD">USD - Amerikan Doları</option>
+                        <option value="EUR">EUR - Euro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Vade Tarihi:</label>
+                    <input type="date" id="posVadeTarihi">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal()">İptal</button>
+                <button class="btn primary" onclick="savePosEntry()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="editRow()">Düzenle</div>
+        <div class="context-menu-item" onclick="deleteRow()">Sil</div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="copyRow()">Kopyala</div>
+        <div class="context-menu-item" onclick="pasteRow()">Yapıştır</div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="insertRowAbove()">Üstte Satır Ekle</div>
+        <div class="context-menu-item" onclick="insertRowBelow()">Altta Satır Ekle</div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentMenu = '';
+        let selectedRow = null;
+        let isLoading = false;
+        let excelData = [];
+        let currentRowIndex = 0;
+
+        // Application state
+        const appState = {
+            unsavedChanges: false,
+            editMode: false,
+            selectedCells: [],
+            clipboard: null,
+            filters: {},
+            sortColumn: null,
+            sortDirection: 'asc'
+        };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeEventListeners();
+            generateSampleData();
+            updateStatusBar();
+            
+            // Simulate realistic loading delay
+            setTimeout(() => {
+                console.log('Preston XI Simülatörü başlatıldı');
+            }, 500);
+        });
+
+        function initializeEventListeners() {
+            // Menu navigation
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const menu = this.getAttribute('data-menu');
+                    selectMenu(menu);
+                });
+            });
+
+            // Grid interactions
+            const grid = document.getElementById('mainGrid');
+            grid.addEventListener('click', handleGridClick);
+            grid.addEventListener('contextmenu', handleGridRightClick);
+            grid.addEventListener('dblclick', handleGridDoubleClick);
+
+            // Window interactions
+            document.addEventListener('click', hideContextMenu);
+            document.addEventListener('keydown', handleKeyboardShortcuts);
+
+            // Modal interactions
+            document.getElementById('modalOverlay').addEventListener('click', function(e) {
+                if (e.target === this) closeModal();
+            });
+
+            // Form validation
+            setupFormValidation();
+        }
+
+        function selectMenu(menuType) {
+            // Remove active state from all menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active state to selected menu
+            document.querySelector(`[data-menu="${menuType}"]`).classList.add('active');
+            
+            currentMenu = menuType;
+            updateRibbon(menuType);
+            
+            // Simulate loading delay
+            showLoading();
+            setTimeout(() => {
+                hideLoading();
+                console.log(`Menü değiştirildi: ${menuType}`);
+            }, 300 + Math.random() * 200);
+        }
+
+        function updateRibbon(menuType) {
+            const ribbon = document.getElementById('ribbon');
+            
+            // Clear current ribbon
+            ribbon.innerHTML = '';
+
+            let ribbonContent = '';
+
+            switch(menuType) {
+                case 'finans-tahsilat':
+                    ribbonContent = `
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Tahsilat İşlemleri</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Pos Girişi" onclick="openPosModal()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%232e7d32%22 viewBox=%220 0 24 24%22><path d=%22M20,8H4V6H20M20,18H4V12H20M22,4H2V20H22V4Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Banka Virmanı" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%231565c0%22 viewBox=%220 0 24 24%22><path d=%22M5,6H23V18H5V16H21V8H5M3,8V16H1V6H3M11,10V12H9V10M13,10V12H11V10M15,10V12H13V10%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Çek Girişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23f57c00%22 viewBox=%220 0 24 24%22><path d=%22M21,5H3C1.89,5 1,5.89 1,7V17C1,18.11 1.89,19 3,19H21C22.11,19 23,18.11 23,17V7C23,5.89 22.11,5 21,5M21,17H3V7H21V17Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Nakit Girişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23388e3c%22 viewBox=%220 0 24 24%22><path d=%22M7,15H9C9,16.08 10.37,17 12,17C13.63,17 15,16.08 15,15C15,13.9 13.96,13.5 11.76,12.97C9.64,12.44 7,11.78 7,9C7,7.21 8.47,5.69 10.5,5.18V3H13.5V5.18C15.53,5.69 17,7.21 17,9H15C15,7.92 13.63,7 12,7C10.37,7 9,7.92 9,9C9,10.1 10.04,10.5 12.24,11.03C14.36,11.56 17,12.22 17,15C17,16.79 15.53,18.31 13.5,18.82V21H10.5V18.82C8.47,18.31 7,16.79 7,15Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Raporlar</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Tahsilat Raporu" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Banka Ekstresi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Araçlar</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Excel Aktar" onclick="exportToExcel()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Excel İçe Aktar" onclick="importFromExcel()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Filtrele" onclick="showFilterDialog()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+
+                case 'muhasebe':
+                    ribbonContent = `
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Fiş İşlemleri</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Yevmiye Fişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Makbuz" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,22L4.5,20.5L6,22L7.5,20.5L9,22L10.5,20.5L12,22L13.5,20.5L15,22L16.5,20.5L18,22L19.5,20.5L21,22V2L19.5,3.5L18,2L16.5,3.5L15,2L13.5,3.5L12,2L10.5,3.5L9,2L7.5,3.5L6,2L4.5,3.5L3,2V22Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Senet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Hesap Planı</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Hesap Kartları" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Ana Hesaplar" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21C21,20.05 20.05,21 19,21H8A4,4 0 0,1 4,17V16H1A1,1 0 0,1 0,15V12A1,1 0 0,1 1,11H4V10A4,4 0 0,1 8,6H9V5.73C8.4,5.39 8,4.74 8,4A2,2 0 0,1 10,2H12M7,15.25L6.5,15.75L5.75,15L6.25,14.5L7,15.25M16.5,17.25L16,17.75L15.25,17L15.75,16.5L16.5,17.25Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+
+                default:
+                    ribbonContent = `
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Genel</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Yeni Kayıt" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Kaydet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Sil" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23d32f2f%22 viewBox=%220 0 24 24%22><path d=%22M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                        <div class="ribbon-group">
+                            <div class="ribbon-group-header">Araçlar</div>
+                            <div class="ribbon-icons">
+                                <div class="ribbon-icon" data-tooltip="Yazdır" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Excel" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
+                                <div class="ribbon-icon" data-tooltip="Filtre" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+
+            ribbon.innerHTML = ribbonContent;
+        }
+
+        function handleGridClick(e) {
+            const row = e.target.closest('tr');
+            if (!row || !row.parentElement.tagName === 'TBODY') return;
+
+            // Remove previous selection
+            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+            
+            // Select current row
+            row.classList.add('selected');
+            selectedRow = row;
+
+            // Make cell editable on click
+            if (e.target.tagName === 'TD') {
+                makeCellEditable(e.target);
+            }
+        }
+
+        function handleGridRightClick(e) {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            if (!row || row.parentElement.tagName !== 'TBODY') return;
+
+            // Select row
+            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            selectedRow = row;
+
+            // Show context menu
+            showContextMenu(e.pageX, e.pageY);
+        }
+
+        function handleGridDoubleClick(e) {
+            const cell = e.target.closest('td');
+            if (cell) {
+                makeCellEditable(cell, true);
+            }
+        }
+
+        function makeCellEditable(cell, focus = false) {
+            if (cell.querySelector('input')) return; // Already editing
+
+            const originalValue = cell.textContent.trim();
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = originalValue;
+            input.style.width = '100%';
+            input.style.border = 'none';
+            input.style.background = 'transparent';
+            input.style.fontSize = '11px';
+            input.style.padding = '0';
+
+            cell.innerHTML = '';
+            cell.appendChild(input);
+
+            if (focus) {
+                input.focus();
+                input.select();
+            }
+
+            input.addEventListener('blur', function() {
+                finishCellEdit(cell, input.value, originalValue);
+            });
+
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    finishCellEdit(cell, input.value, originalValue);
+                } else if (e.key === 'Escape') {
+                    finishCellEdit(cell, originalValue, originalValue);
+                }
+            });
+        }
+
+        function finishCellEdit(cell, newValue, originalValue) {
+            cell.textContent = newValue;
+            
+            if (newValue !== originalValue) {
+                appState.unsavedChanges = true;
+                cell.style.backgroundColor = '#fff8dc'; // Highlight changed cells
+                setTimeout(() => {
+                    cell.style.backgroundColor = '';
+                }, 2000);
+                
+                console.log(`Hücre değiştirildi: ${originalValue} -> ${newValue}`);
+            }
+
+            updateStatusBar();
+        }
+
+        function showContextMenu(x, y) {
+            const contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+
+            // Adjust position if menu goes off screen
+            const rect = contextMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                contextMenu.style.left = (x - rect.width) + 'px';
+            }
+            if (rect.bottom > window.innerHeight) {
+                contextMenu.style.top = (y - rect.height) + 'px';
+            }
+        }
+
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        function openPosModal() {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            
+            // Auto-generate document number
+            const nextNo = document.querySelectorAll('#gridBody tr').length + 44650;
+            document.getElementById('posBelgeNo').value = nextNo;
+            
+            // Focus first input
+            setTimeout(() => {
+                document.getElementById('posTarih').focus();
+            }, 100);
+
+            console.log('POS giriş modalı açıldı');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            clearPosForm();
+        }
+
+        function clearPosForm() {
+            document.getElementById('posTarih').value = '2025-07-25';
+            document.getElementById('posSeri').value = '';
+            document.getElementById('posKartHesap').value = '';
+            document.getElementById('posAciklama').value = '';
+            document.getElementById('posTutar').value = '';
+            document.getElementById('posDoviz').value = 'TRY';
+            document.getElementById('posVadeTarihi').value = '';
+        }
+
+        function savePosEntry() {
+            // Validate form
+            const requiredFields = ['posTarih', 'posSeri', 'posKartHesap', 'posAciklama', 'posTutar'];
+            let isValid = true;
+
+            requiredFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (!field.value.trim()) {
+                    field.style.borderColor = '#d32f2f';
+                    isValid = false;
+                } else {
+                    field.style.borderColor = '#ccc';
+                }
+            });
+
+            if (!isValid) {
+                alert('Lütfen tüm gerekli alanları doldurun!');
+                return;
+            }
+
+            // Simulate save delay
+            showLoading();
+
+            setTimeout(() => {
+                // Add new row to grid
+                addNewRowToGrid();
+                closeModal();
+                hideLoading();
+                updateStatusBar();
+                
+                console.log('POS girişi kaydedildi');
+                
+                // Show success message
+                showNotification('POS girişi başarıyla kaydedildi!', 'success');
+            }, 500 + Math.random() * 500);
+        }
+
+        function addNewRowToGrid() {
+            const formData = {
+                tarih: document.getElementById('posTarih').value,
+                seri: document.getElementById('posSeri').value,
+                no: document.getElementById('posBelgeNo').value,
+                kartHesap: document.getElementById('posKartHesap').value,
+                aciklama: document.getElementById('posAciklama').value,
+                tutar: parseFloat(document.getElementById('posTutar').value),
+                doviz: document.getElementById('posDoviz').value,
+                vadeTarihi: document.getElementById('posVadeTarihi').value
+            };
+
+            const tbody = document.getElementById('gridBody');
+            const newRow = document.createElement('tr');
+            
+            // Format date
+            const formattedDate = new Date(formData.tarih).toLocaleDateString('tr-TR');
+            const formattedVadeDate = formData.vadeTarihi ? new Date(formData.vadeTarihi).toLocaleDateString('tr-TR') : '';
+
+            newRow.innerHTML = `
+                <td>${formattedDate}</td>
+                <td>${formData.seri}</td>
+                <td>${formData.no}</td>
+                <td>POS</td>
+                <td>${formData.kartHesap}</td>
+                <td>${formData.aciklama}</td>
+                <td>${formData.tutar.toFixed(2)}</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>${formData.doviz}</td>
+                <td>POS İşlemi</td>
+                <td>${formattedDate}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>${formattedVadeDate}</td>
+                <td></td>
+            `;
+
+            // Insert at top
+            tbody.insertBefore(newRow, tbody.firstChild);
+            
+            // Highlight new row
+            newRow.style.backgroundColor = '#e8f5e8';
+            setTimeout(() => {
+                newRow.style.backgroundColor = '';
+            }, 3000);
+
+            appState.unsavedChanges = true;
+        }
+
+        function setupFormValidation() {
+            // Real-time validation
+            document.getElementById('posTutar').addEventListener('input', function(e) {
+                let value = e.target.value;
+                // Allow only numbers and decimal point
+                value = value.replace(/[^0-9.]/g, '');
+                e.target.value = value;
+            });
+
+            document.getElementById('posKartHesap').addEventListener('blur', function(e) {
+                // Simulate account validation
+                const accountCode = e.target.value.trim();
+                if (accountCode && accountCode.length >= 3) {
+                    // Simulate API call delay
+                    e.target.style.backgroundColor = '#fff3cd';
+                    setTimeout(() => {
+                        e.target.style.backgroundColor = '';
+                        console.log(`Hesap kodu doğrulandı: ${accountCode}`);
+                    }, 300);
+                }
+            });
+        }
+
+        function showLoading() {
+            isLoading = true;
+            document.body.classList.add('loading');
+        }
+
+        function hideLoading() {
+            isLoading = false;
+            document.body.classList.remove('loading');
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 10000;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+
+            // Remove after delay
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        function generateSampleData() {
+            // Add more realistic sample data
+            const sampleData = [
+                {
+                    tarih: '25.07.2025',
+                    seri: 'BNK-FT',
+                    no: '44633',
+                    ref: 'Banka',
+                    hesap: '6250744',
+                    aciklama: 'GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620091 İNS',
+                    borc: '562.12',
+                    alacak: '0.00',
+                    doviz: 'Banka Virman'
+                },
+                {
+                    tarih: '25.07.2025',
+                    seri: 'BNK-FT',
+                    no: '44632',
+                    ref: 'Banka',
+                    hesap: '6250744',
+                    aciklama: 'GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ',
+                    borc: '1.301.96',
+                    alacak: '0.00',
+                    doviz: 'Banka Virman'
+                },
+                {
+                    tarih: '25.07.2025',
+                    seri: 'BNK-FT',
+                    no: '44631',
+                    ref: 'Banka',
+                    hesap: '6250893',
+                    aciklama: 'GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ URDU HAF',
+                    borc: '130.66',
+                    alacak: '0.00',
+                    doviz: 'Banka Virman'
+                }
+            ];
+
+            // Add sample data to grid would be here if needed
+            console.log('Örnek veriler yüklendi');
+        }
+
+        function updateStatusBar() {
+            // Calculate totals from grid
+            const rows = document.querySelectorAll('#gridBody tr');
+            let totalBorc = 0;
+            let totalAlacak = 0;
+
+            rows.forEach(row => {
+                const cells = row.cells;
+                if (cells.length > 6) {
+                    const borc = parseFloat(cells[6].textContent.replace(/[^\d.-]/g, '')) || 0;
+                    const alacak = parseFloat(cells[7].textContent.replace(/[^\d.-]/g, '')) || 0;
+                    totalBorc += borc;
+                    totalAlacak += alacak;
+                }
+            });
+
+            // Update status bar with real calculations
+            const statusElements = document.querySelectorAll('.status-section span');
+            if (statusElements.length >= 6) {
+                statusElements[1].textContent = totalBorc.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+                statusElements[3].textContent = totalAlacak.toLocaleString('tr-TR', {minimumFractionDigits: 2});
+                statusElements[5].textContent = (totalAlacak - totalBorc).toLocaleString('tr-TR', {minimumFractionDigits: 2});
+            }
+        }
+
+        function handleKeyboardShortcuts(e) {
+            // Common shortcuts
+            if (e.ctrlKey) {
+                switch(e.key.toLowerCase()) {
+                    case 's':
+                        e.preventDefault();
+                        saveDocument();
+                        break;
+                    case 'n':
+                        e.preventDefault();
+                        if (currentMenu === 'finans-tahsilat') {
+                            openPosModal();
+                        }
+                        break;
+                    case 'f':
+                        e.preventDefault();
+                        showFilterDialog();
+                        break;
+                    case 'p':
+                        e.preventDefault();
+                        printDocument();
+                        break;
+                }
+            }
+
+            // Escape key
+            if (e.key === 'Escape') {
+                closeModal();
+                hideContextMenu();
+            }
+
+            // Delete key
+            if (e.key === 'Delete' && selectedRow) {
+                deleteRow();
+            }
+
+            // Enter key in modals
+            if (e.key === 'Enter' && document.getElementById('modalOverlay').style.display === 'flex') {
+                e.preventDefault();
+                savePosEntry();
+            }
+        }
+
+        // Context menu functions
+        function editRow() {
+            if (!selectedRow) return;
+            
+            // Make all cells in row editable
+            const cells = selectedRow.querySelectorAll('td');
+            cells.forEach((cell, index) => {
+                if (index > 0 && index < cells.length - 1) { // Skip first and last columns
+                    makeCellEditable(cell, index === 1);
+                }
+            });
+            
+            hideContextMenu();
+            console.log('Satır düzenleme moduna alındı');
+        }
+
+        function deleteRow() {
+            if (!selectedRow) return;
+            
+            if (confirm('Bu satırı silmek istediğinizden emin misiniz?')) {
+                selectedRow.style.backgroundColor = '#ffebee';
+                setTimeout(() => {
+                    selectedRow.remove();
+                    selectedRow = null;
+                    appState.unsavedChanges = true;
+                    updateStatusBar();
+                    console.log('Satır silindi');
+                    showNotification('Satır başarıyla silindi', 'success');
+                }, 200);
+            }
+            
+            hideContextMenu();
+        }
+
+        function copyRow() {
+            if (!selectedRow) return;
+            
+            const cells = selectedRow.querySelectorAll('td');
+            appState.clipboard = Array.from(cells).map(cell => cell.textContent.trim());
+            
+            showNotification('Satır kopyalandı', 'info');
+            hideContextMenu();
+            console.log('Satır panoya kopyalandı');
+        }
+
+        function pasteRow() {
+            if (!appState.clipboard || !selectedRow) return;
+            
+            const cells = selectedRow.querySelectorAll('td');
+            appState.clipboard.forEach((value, index) => {
+                if (index < cells.length) {
+                    cells[index].textContent = value;
+                    cells[index].style.backgroundColor = '#fff8dc';
+                    setTimeout(() => {
+                        cells[index].style.backgroundColor = '';
+                    }, 2000);
+                }
+            });
+            
+            appState.unsavedChanges = true;
+            updateStatusBar();
+            showNotification('Satır yapıştırıldı', 'success');
+            hideContextMenu();
+            console.log('Satır yapıştırıldı');
+        }
+
+        function insertRowAbove() {
+            if (!selectedRow) return;
+            
+            const newRow = createEmptyRow();
+            selectedRow.parentNode.insertBefore(newRow, selectedRow);
+            
+            // Select new row
+            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+            newRow.classList.add('selected');
+            selectedRow = newRow;
+            
+            appState.unsavedChanges = true;
+            hideContextMenu();
+            console.log('Üstte yeni satır eklendi');
+        }
+
+        function insertRowBelow() {
+            if (!selectedRow) return;
+            
+            const newRow = createEmptyRow();
+            selectedRow.parentNode.insertBefore(newRow, selectedRow.nextSibling);
+            
+            // Select new row
+            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
+            newRow.classList.add('selected');
+            selectedRow = newRow;
+            
+            appState.unsavedChanges = true;
+            hideContextMenu();
+            console.log('Altta yeni satır eklendi');
+        }
+
+        function createEmptyRow() {
+            const row = document.createElement('tr');
+            const today = new Date().toLocaleDateString('tr-TR');
+            
+            row.innerHTML = `
+                <td>${today}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td>0.00</td>
+                <td></td>
+                <td></td>
+                <td>${today}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            `;
+            
+            row.style.backgroundColor = '#e8f5e8';
+            setTimeout(() => {
+                row.style.backgroundColor = '';
+            }, 3000);
+            
+            return row;
+        }
+
+        // Additional utility functions
+        function saveDocument() {
+            if (!appState.unsavedChanges) {
+                showNotification('Kaydedilecek değişiklik yok', 'info');
+                return;
+            }
+            
+            showLoading();
+            
+            setTimeout(() => {
+                appState.unsavedChanges = false;
+                hideLoading();
+                showNotification('Belge başarıyla kaydedildi', 'success');
+                console.log('Belge kaydedildi');
+            }, 800 + Math.random() * 400);
+        }
+
+        function exportToExcel() {
+            showLoading();
+            
+            setTimeout(() => {
+                hideLoading();
+                showNotification('Excel dosyası dışa aktarıldı', 'success');
+                console.log('Excel export işlemi tamamlandı');
+            }, 1000 + Math.random() * 500);
+        }
+
+        function importFromExcel() {
+            // Simulate file dialog
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    showLoading();
+                    
+                    setTimeout(() => {
+                        hideLoading();
+                        showNotification(`Excel dosyası içe aktarıldı: ${file.name}`, 'success');
+                        console.log(`Excel import: ${file.name}`);
+                    }, 1500 + Math.random() * 1000);
+                }
+            });
+            
+            input.click();
+        }
+
+        function showFilterDialog() {
+            // This would show a filter dialog in real implementation
+            showNotification('Filtre özelliği yakında eklenecek', 'info');
+            console.log('Filtre diyalogu açılması istendi');
+        }
+
+        function printDocument() {
+            showLoading();
+            
+            setTimeout(() => {
+                hideLoading();
+                showNotification('Yazdırma işlemi başlatıldı', 'success');
+                console.log('Yazdırma işlemi başlatıldı');
+            }, 500);
+        }
+
+        // Window behavior simulation
+        window.addEventListener('beforeunload', function(e) {
+            if (appState.unsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?';
+                return e.returnValue;
+            }
+        });
+
+        // Simulate random system events
+        function simulateSystemEvents() {
+            setInterval(() => {
+                // Simulate auto-save
+                if (appState.unsavedChanges && Math.random() > 0.7) {
+                    console.log('Otomatik kayıt gerçekleştirildi');
+                }
+                
+                // Simulate network status changes
+                if (Math.random() > 0.95) {
+                    console.log('Ağ bağlantısı kontrol ediliyor...');
+                }
+            }, 30000);
+        }
+
+        // Start system events simulation
+        setTimeout(simulateSystemEvents, 5000);
+
+        // Performance monitoring
+        let performanceStartTime = performance.now();
+        
+        window.addEventListener('load', function() {
+            const loadTime = performance.now() - performanceStartTime;
+            console.log(`Preston XI simülatörü ${Math.round(loadTime)}ms'de yüklendi`);
+        });
+
+        // Console commands for RPA testing
+        window.prestonRPA = {
+            selectMenu: selectMenu,
+            openPosModal: openPosModal,
+            fillPosForm: function(data) {
+                Object.keys(data).forEach(key => {
+                    const element = document.getElementById('pos' + key.charAt(0).toUpperCase() + key.slice(1));
+                    if (element) {
+                        element.value = data[key];
+                    }
+                });
+            },
+            savePosEntry: savePosEntry,
+            getGridData: function() {
+                const rows = document.querySelectorAll('#gridBody tr');
+                return Array.from(rows).map(row => {
+                    return Array.from(row.cells).map(cell => cell.textContent.trim());
+                });
+            },
+            simulateExcelData: function(data) {
+                excelData = data;
+                console.log('Excel verileri simüle edildi:', data.length, 'satır');
+            },
+            processExcelRow: function(rowIndex) {
+                if (rowIndex < excelData.length) {
+                    const rowData = excelData[rowIndex];
+                    openPosModal();
+                    
+                    setTimeout(() => {
+                        // Fill form with Excel data
+                        if (rowData.tarih) document.getElementById('posTarih').value = rowData.tarih;
+                        if (rowData.seri) document.getElementById('posSeri').value = rowData.seri;
+                        if (rowData.hesap) document.getElementById('posKartHesap').value = rowData.hesap;
+                        if (rowData.aciklama) document.getElementById('posAciklama').value = rowData.aciklama;
+                        if (rowData.tutar) document.getElementById('posTutar').value = rowData.tutar;
+                        
+                        console.log(`Excel satır ${rowIndex + 1} forma dolduruldu`);
+                    }, 100);
+                }
+            }
+        };
+
+        console.log('Preston XI RPA Simülatörü hazır!');
+        console.log('RPA test komutları için window.prestonRPA nesnesini kullanın');
+        console.log('Örnek: prestonRPA.selectMenu("finans-tahsilat")');
+    </script>
+</body>
+</html>
