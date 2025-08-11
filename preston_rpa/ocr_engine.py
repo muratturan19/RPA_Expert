@@ -88,9 +88,10 @@ class OCREngine:
 
     def find_text_on_screen(
         self,
-        text: str,
+        text: Iterable[str] | str,
         region=None,
         confidence: float = OCR_CONFIDENCE,
+        normalize: bool = True,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Find text coordinates using OCR."""
         img = self._screenshot(region)
@@ -102,7 +103,11 @@ class OCREngine:
             config=OCR_TESSERACT_CONFIG,
             output_type=pytesseract.Output.DICT,
         )
-        target = self._normalize(text)
+        variants = [text] if isinstance(text, str) else list(text)
+        targets = [
+            self._normalize(v) if normalize else v.casefold()
+            for v in variants
+        ]
         lines = {}
         for i, found_text in enumerate(data["text"]):
             if not found_text.strip():
@@ -132,7 +137,8 @@ class OCREngine:
             line["bottom"].append(top + height)
         for line in lines.values():
             line_text = " ".join(line["words"])
-            if self._normalize(line_text) == target:
+            line_norm = self._normalize(line_text) if normalize else line_text.casefold()
+            if line_norm in targets:
                 x = min(line["left"])
                 y = min(line["top"])
                 w = max(line["right"]) - x
@@ -141,8 +147,9 @@ class OCREngine:
                     x += region[0]
                     y += region[1]
                 return x, y, w, h
-        if self.debug:
-            self._save_debug_image(img, f"not_found_{self._normalize(text)}")
+        if self.debug and variants:
+            miss = self._normalize(variants[0]) if normalize else variants[0].casefold()
+            self._save_debug_image(img, f"not_found_{miss}")
         return None
 
     def click_text(
