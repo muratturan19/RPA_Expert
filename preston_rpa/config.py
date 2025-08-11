@@ -4,7 +4,10 @@ Configuration settings for Preston RPA system.
 
 # OCR Settings
 OCR_CONFIDENCE = 0.8
-OCR_LANGUAGE = "tur"  # Turkish
+# Use both Turkish and English language packs for better recognition
+OCR_LANGUAGE = "tur+eng"
+# Tesseract configuration string
+OCR_TESSERACT_CONFIG = "--psm 6"
 
 # Timing Settings
 CLICK_DELAY = 1.0

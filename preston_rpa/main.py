@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import threading
+import time
+from queue import Queue
 from pathlib import Path
 from typing import List, Dict
 
@@ -13,25 +15,31 @@ if __package__ in (None, ""):
     import sys
     sys.path.append(str(Path(__file__).resolve().parent.parent))
     from preston_rpa.excel_processor import process_excel_file
-    from preston_rpa.preston_automation import PrestonRPA
+    from preston_rpa.preston_automation import PrestonRPA, focus_preston_window
     from preston_rpa.logger import get_logger
 else:
     from .excel_processor import process_excel_file
-    from .preston_automation import PrestonRPA
+    from .preston_automation import PrestonRPA, focus_preston_window
     from .logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def run_automation(data: List[Dict[str, object]], simulator_path: str, progress_placeholder):
+def run_automation(data: List[Dict[str, object]], simulator_path: str, progress_queue: Queue):
     rpa = PrestonRPA()
     total = len(data)
-    for idx, entry in enumerate(data, start=1):
-        if not rpa.running:
-            break
-        rpa.execute_workflow(entry)
-        progress_placeholder.progress(idx / total)
-    rpa.stop()
+    try:
+        for idx, entry in enumerate(data, start=1):
+            if not rpa.running:
+                break
+            rpa.execute_workflow(entry)
+            progress_queue.put(idx / total)
+    except Exception as exc:
+        logger.exception("Automation failed: %s", exc)
+        progress_queue.put(("error", str(exc)))
+    finally:
+        rpa.stop()
+        progress_queue.put(1.0)
 
 
 def main():
@@ -52,10 +60,35 @@ def main():
             excel_path = Path("uploaded.xlsx")
             excel_path.write_bytes(buffer.getvalue())
             data = process_excel_file(excel_path)
-        threading.Thread(target=run_automation, args=(data, simulator_path, progress_placeholder), daemon=True).start()
-        st.success("Automation started")
+        focus_preston_window(simulator_path)
+        progress_queue: Queue = Queue()
+        thread = threading.Thread(
+            target=run_automation,
+            args=(data, simulator_path, progress_queue),
+            daemon=True,
+        )
+        thread.start()
+        error_message = None
+        while thread.is_alive() or not progress_queue.empty():
+            try:
+                progress = progress_queue.get(timeout=0.1)
+                if isinstance(progress, tuple) and progress[0] == "error":
+                    error_message = progress[1]
+                    st.error(error_message)
+                    break
+                else:
+                    progress_placeholder.progress(progress)
+            except Exception:
+                pass
+            time.sleep(0.1)
+        if error_message is None:
+            st.success("Automation finished")
 
-    log_box.text(Path(__file__).with_name("automation.log").read_text() if Path(__file__).with_name("automation.log").exists() else "")
+    log_box.text(
+        Path(__file__).with_name("automation.log").read_text()
+        if Path(__file__).with_name("automation.log").exists()
+        else ""
+    )
 
 
 if __name__ == "__main__":
