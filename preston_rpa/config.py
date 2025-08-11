@@ -4,10 +4,10 @@ Configuration settings for Preston RPA system.
 
 # OCR Settings
 OCR_CONFIDENCE = 0.8
-# Use both Turkish and English language packs for better recognition
-OCR_LANGUAGE = "tur+eng"
-# Tesseract configuration string
-OCR_TESSERACT_CONFIG = "--psm 6"
+# Use Turkish language pack
+OCR_LANGUAGE = "tur"
+# Tesseract configuration string (single line mode for menu bar)
+OCR_TESSERACT_CONFIG = "--psm 7"
 
 # Timing Settings
 CLICK_DELAY = 1.0
@@ -16,8 +16,16 @@ MODAL_WAIT_TIMEOUT = 10
 
 # Text patterns for OCR
 UI_TEXTS = {
-    "finans_menu": "Finans",
-    "izle_tab": "İzle",
+    "finans_izle": [
+        "Finans - İzle",
+        "Finans-İzle",
+        "Finans – İzle",
+        "Finans — İzle",
+        "Finans İzle",
+        "FINANS - İZLE",
+        "Finans - Izle",
+    ],
+    "banka_hesap_izleme": "Banka hesap izleme",
     "tamam_button": "Tamam",
     "yeni_button": "Yeni",
     "kaydet_button": "Kaydet",
