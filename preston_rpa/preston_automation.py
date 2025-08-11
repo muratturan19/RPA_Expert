@@ -6,6 +6,9 @@ import time
 from typing import List, Dict
 
 import subprocess
+import shutil
+from pathlib import Path
+
 import pyautogui
 import pygetwindow as gw
 
@@ -47,9 +50,21 @@ def focus_preston_window(simulator_path: str) -> None:
             time.sleep(0.5)
 
     # Open the simulator if the tab could not be found
+    chrome_paths = [
+        shutil.which("chrome"),
+        shutil.which("google-chrome"),
+        shutil.which("chromium"),
+        r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    ]
+
+    chrome_executable = next((p for p in chrome_paths if p and Path(p).exists()), None)
+    if not chrome_executable:
+        raise FileNotFoundError("Chrome executable not found. Please install Google Chrome or add it to PATH.")
+
     subprocess.run(
         [
-            "chrome",
+            chrome_executable,
             "--new-window",
             "--start-maximized",
             f"file:///{simulator_path}",
