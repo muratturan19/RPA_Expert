@@ -1,1615 +1,1719 @@
-<!DOCTYPE html>
+<div class="modal-buttons">
+                <button class="btn" id="havaleKapat">Kapat</button>
+                <button class="btn primary ocr-target" id="havaleKaydet">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banka Kodu Search Modal -->
+    <div class="modal-overlay" id="bankaSearchModal">
+        <div class="modal search-dialog">
+            <div class="modal-header">Banka Kodu Arama</div>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label class="form-label">Banka Kodu:</label>
+                    <input type="text" class="form-input" id="searchBankaKodu" placeholder="Banka kodu girin">
+                </div>
+                <div class="search-results" id="bankaSearchResults">
+                    <div class="search-item" data-banka="001" data-aciklama="TÜRKIYE CUMHURİYET MERKEZ BANKASI">
+                        <strong>001</strong> - TÜRKIYE CUMHURİYET MERKEZ BANKASI
+                    </div>
+                    <div class="search-item" data-banka="010" data-aciklama="T.C. ZİRAAT BANKASI A.Ş.">
+                        <strong>010</strong> - T.C. ZİRAAT BANKASI A.Ş.
+                    </div>
+                    <div class="search-item" data-banka="012" data-aciklama="TÜRKIYE HALK BANKASI A.Ş.">
+                        <strong>012</strong> - TÜRKIYE HALK BANKASI A.Ş.
+                    </div>
+                    <div class="search-item" data-banka="062" data-aciklama="TÜRKİYE GARANTİ BANKASI A.Ş.">
+                        <strong>062</strong> - TÜRKİYE GARANTİ BANKASI A.Ş.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="bankaSearchCancel">İptal</button>
+                <button class="btn primary ocr-target tamam-text" id="bankaSearchOk">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cari Kodu Search Modal -->
+    <div class="modal-overlay" id="cariSearchModal">
+        <div class="modal search-dialog">
+            <div class="modal-header">Cari Kodu Arama</div>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label class="form-label">Cari Kodu:</label>
+                    <input type="text" class="form-input" id="searchCariKodu" placeholder="Cari kodu girin">
+                </div>
+                <div class="search-results" id="cariSearchResults">
+                    <div class="search-item" data-cari="120.01.001" data-aciklama="ABC TEKSTİL LTD. ŞTİ.">
+                        <strong>120.01.001</strong> - ABC TEKSTİL LTD. ŞTİ.
+                    </div>
+                    <div class="search-item" data-cari="120.12.001" data-aciklama="XYZ İNŞAAT A.Ş.">
+                        <strong>120.12.001</strong> - XYZ İNŞAAT A.Ş.
+                    </div>
+                    <div class="search-item" data-cari="120.15.003" data-aciklama="DEF GIDA SAN. TİC. LTD.">
+                        <strong>120.15.003</strong> - DEF GIDA SAN. TİC. LTD.
+                    </div>
+                    <div class="search-item" data-cari="320.01.001" data-aciklama="GHI ELEKTRONİK A.Ş.">
+                        <strong>320.01.001</strong> - GHI ELEKTRONİK A.Ş.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="cariSearchCancel">İptal</button>
+                <button class="btn primary ocr-target tamam-text" id="cariSearchOk">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="log-panel" id="logPanel">
+        <div class="log-header">🤖 Preston RPA OCR Debug Log</div>
+        <div id="logContent"></div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-item">
+                <div class="status-indicator"></div>
+                <span>Preston Xi - Hazır</span>
+            </div>
+            <div class="status-item">
+                <span id="connectionStatus">Bağlantı: Aktif</span>
+            </div>
+            <div class="status-item">
+                <span id="userInfo">Kullanıcı: DEMO_USER</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <div id="automationStatus">RPA: Bekliyor</div>
+            <div id="currentTime"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let selectedHesap = '';
+        let selectedBanka = '';
+        let selectedCari = '';
+        let currentBelgeNo = 634580;
+        let automationActive = false;
+        let logVisible = false;
+        let workflowStep = 0;
+        let isProcessing = false;
+        let debugMode = false;
+        let hesapSearchStep = 0;
+        let allHesapData = [
+            { hesap: '6293986', aciklama: 'GARANTİ 6293986 DEMETEVLER MÜSLÜOĞLU ŞUBESİ' },
+            { hesap: '3613557708', aciklama: 'DEMETEVLER 3613557708 DEMETEVLER MÜSLÜOĞLU ŞUBESİ' },
+            { hesap: '1026142', aciklama: 'HALKBANK 1026142 DEMETEVLER MÜSLÜOĞLU ŞUBESİ' },
+            { hesap: '459004', aciklama: 'ZIRAAT BANK 459004 DEMETEVLER MÜSLÜOĞLU' },
+            { hesap: '7821345', aciklama: 'AKTİF YATIRIM 7821345 ANKARA ŞUBESİ' }
+        ];
+        let filteredHesapData = [...allHesapData];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            setupEventListeners();
+            initializeOCRTargets();
+            
+            // Start in production mode - no debug logs
+            console.log('Preston Xi Kurumsal Kaynak Yönetim Sistemi v2.1.4');
+            console.log('Copyright © 2024 Preston Software Ltd.');
+        });
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('tr-TR');
+        }
+
+        function initializeOCRTargets() {
+            const ocrTargets = document.querySelectorAll('.ocr-target');
+            ocrTargets.forEach((element, index) => {
+                element.setAttribute('data-ocr-id', `ocr_${index}`);
+                element.setAttribute('data-ocr-text', element.textContent.trim() || element.placeholder || element.value);
+            });
+            
+            if (debugMode) {
+                addLog(`🎯 OCR Targets initialized: ${ocrTargets.length} elements`);
+            }
+        }
+
+        function setupEventListeners() {
+            // Step 1: Finans - İzle menu click
+            document.getElementById('finansIzleMenu').addEventListener('click', function() {
+                workflowStep = 1;
+                highlightOCRTarget(this);
+                showDropdown('finansIzleDropdown');
+                addLog('✅ STEP 1: "Finans - İzle" menüsü tıklandı');
+                updateAutomationStatus('Step 1: Menu açıldı');
+            });
+
+            // Step 2: Banka hesap izleme dropdown selection
+            document.querySelector('[data-action="banka-hesap-izleme"]').addEventListener('click', function() {
+                workflowStep = 2;
+                highlightOCRTarget(this);
+                hideAllDropdowns();
+                addLog('✅ STEP 2: "Banka hesap izleme" dropdown seçildi');
+                updateAutomationStatus('Step 2: Dropdown seçildi');
+            });
+
+            // Step 3: BANKA ribbon icon click
+            document.getElementById('bankaRibbonIcon').addEventListener('click', function() {
+                workflowStep = 3;
+                highlightOCRTarget(this);
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                showModal('bankaIzlemeModal');
+                addLog('✅ STEP 3: "BANKA" ribbon ikonu tıklandı');
+                updateAutomationStatus('Step 3: BANKA ribbon açıldı');
+            });
+
+            // Step 4: Banka dialog Tamam
+            document.getElementById('bankaIzlemeOk').addEventListener('click', function() {
+                workflowStep = 4;
+                highlightOCRTarget(this);
+                const selectedOption = document.getElementById('bankaIslemTuru').value;
+                if (!selectedOption) {
+                    alert('Lütfen işlem türü seçin');
+                    return;
+                }
+                hideModal('bankaIzlemeModal');
+                addLog('✅ STEP 4: Banka dialog "Tamam" tıklandı');
+                updateAutomationStatus('Step 4: Dialog onaylandı');
+            });
+
+            // Step 5: "..." button for hesap search
+            document.getElementById('hesapSearchBtn').addEventListener('click', function() {
+                workflowStep = 5;
+                hesapSearchStep = 0;
+                highlightOCRTarget(this);
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                showModal('hesapSearchModal');
+                renderHesapList();
+                addLog('✅ STEP 5: "..." butonuna tıklandı (hesap arama)');
+                updateAutomationStatus('Step 5: Hesap arama açıldı');
+            });
+
+            // Hesap search input filtering
+            document.getElementById('searchHesapNo').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                filteredHesapData = allHesapData.filter(item => 
+                    item.hesap.toLowerCase().includes(searchTerm) || 
+                    item.aciklama.toLowerCase().includes(searchTerm)
+                );
+                renderHesapList();
+                addLog(`🔍 Hesap arama: "${searchTerm}" - ${filteredHesapData.length} sonuç`);
+            });
+
+            // Enter key in search
+            document.getElementById('searchHesapNo').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && filteredHesapData.length > 0) {
+                    const firstItem = document.querySelector('#searchResults .search-item');
+                    if (firstItem) {
+                        firstItem.click();
+                        addLog('⏎ Enter ile ilk eşleşen seçildi');
+                    }
+                }
+            });
+
+            // Step 6 & 7: Hesap selection and DOUBLE Tamam
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('search-item') && e.target.closest('#searchResults')) {
+                    hesapSearchStep = 1;
+                    highlightOCRTarget(e.target);
+                    document.querySelectorAll('#searchResults .search-item').forEach(i => i.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedHesap = e.target.dataset.hesap;
+                    addLog(`✅ STEP 6: Hesap seçildi: ${selectedHesap}`);
+                }
+            });
+
+            document.getElementById('hesapSearchOk').addEventListener('click', function() {
+                if (!selectedHesap) {
+                    alert('Lütfen bir hesap seçin');
+                    return;
+                }
+                
+                hesapSearchStep++;
+                highlightOCRTarget(this);
+                
+                if (hesapSearchStep === 1) {
+                    addLog('✅ STEP 7a: İlk "Tamam" - Hesap onaylandı, ikinci onay bekleniyor');
+                    updateAutomationStatus('Step 7a: İlk Tamam - Onay bekleniyor');
+                    
+                    const confirmDiv = document.createElement('div');
+                    confirmDiv.innerHTML = `
+                        <div style="background: #e8f5e8; border: 1px solid #4caf50; padding: 10px; margin: 10px 0; border-radius: 3px;">
+                            ✅ Hesap seçildi: <strong>${selectedHesap}</strong><br>
+                            Onaylamak için tekrar "Tamam" butonuna basın.
+                        </div>
+                    `;
+                    document.querySelector('#hesapSearchModal .modal-content').appendChild(confirmDiv);
+                    
+                } else if (hesapSearchStep === 2) {
+                    document.getElementById('hesapNoInput').value = selectedHesap;
+                    hideModal('hesapSearchModal');
+                    addLog('✅ STEP 7b: İkinci "Tamam" - Hesap final onaylandı ve modal kapatıldı');
+                    updateAutomationStatus('Step 7b: Hesap seçimi tamamlandı');
+                    hesapSearchStep = 0;
+                }
+            });
+
+            // Step 8: Date filling and Yenile
+            document.getElementById('baslangicTarih').addEventListener('change', function() {
+                if (this.value) {
+                    document.getElementById('bitisTarih').value = this.value;
+                    addLog(`📅 Tarih dolduruldu: ${this.value}`);
+                }
+            });
+
+            document.getElementById('yenileBtn').addEventListener('click', function() {
+                workflowStep = 8;
+                highlightOCRTarget(this);
+                const hesapNo = document.getElementById('hesapNoInput').value;
+                const baslangic = document.getElementById('baslangicTarih').value;
+                const bitis = document.getElementById('bitisTarih').value;
+
+                if (!hesapNo || !baslangic || !bitis) {
+                    alert('Lütfen hesap no ve tarihleri doldurun');
+                    return;
+                }
+
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                showProgress(50);
+                addLog('✅ STEP 8: "Yenile" butonu tıklandı');
+                updateAutomationStatus('Step 8: Veriler yenileniyor...');
+                
+                setTimeout(() => {
+                    showProgress(100);
+                    displayAccountData(hesapNo, baslangic, bitis);
+                    setTimeout(() => showProgress(0), 500);
+                    addLog('✅ Hesap hareketleri yüklendi');
+                    updateAutomationStatus('Step 8: Veriler hazır');
+                }, 1500);
+            });
+
+            // Step 9: Yeni button
+            document.getElementById('yeniBtn').addEventListener('click', function() {
+                workflowStep = 9;
+                highlightOCRTarget(this);
+                const hesapNo = document.getElementById('hesapNoInput').value;
+                if (!hesapNo) {
+                    alert('Önce hesap seçin ve yenile butonuna basın');
+                    return;
+                }
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                showModal('yeniIslemModal');
+                addLog('✅ STEP 9: "Yeni" buton tıklandı');
+                updateAutomationStatus('Step 9: İşlem türü seçiliyor...');
+            });
+
+            // Step 10: Havale alma selection
+            document.querySelector('[data-action="havale-alma"]').addEventListener('click', function() {
+                workflowStep = 10;
+                highlightOCRTarget(this);
+                hideModal('yeniIslemModal');
+                showModal('havaleAlmaModal');
+                
+                const baslangicTarih = document.getElementById('baslangicTarih').value;
+                
+                if (baslangicTarih) {
+                    document.getElementById('havaleBelgeTarihi').value = baslangicTarih;
+                    document.getElementById('havaleValorTarihi').value = baslangicTarih;
+                    addLog(`📅 Tarihler senkronize edildi: ${baslangicTarih}`);
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('havaleBelgeTarihi').value = today;
+                    document.getElementById('havaleValorTarihi').value = today;
+                }
+                
+                document.getElementById('havaleBelgeNo').value = currentBelgeNo;
+                
+                addLog('✅ STEP 10: "Havale alma" seçildi');
+                updateAutomationStatus('Step 10: Havale formu açıldı');
+            });
+
+            // Step 11: Yeni button for belge no
+            document.getElementById('yeniHavaleBtn').addEventListener('click', function() {
+                workflowStep = 11;
+                highlightOCRTarget(this);
+                currentBelgeNo++;
+                document.getElementById('havaleBelgeNo').value = currentBelgeNo;
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                addLog(`✅ STEP 11: "Yeni" buton tıklandı - Belge no: ${currentBelgeNo}`);
+                updateAutomationStatus('Step 11: Yeni belge no oluşturuldu');
+            });
+
+            // Steps 12-17: Form filling
+            document.getElementById('havaleBelgeTarihi').addEventListener('change', function() {
+                if (this.value && workflowStep >= 11) {
+                    addLog(`📅 STEP 12: Belge Tarihi girildi: ${this.value}`);
+                }
+            });
+
+            document.getElementById('havaleValorTarihi').addEventListener('change', function() {
+                if (this.value && workflowStep >= 11) {
+                    addLog(`📅 STEP 12b: Valör Tarihi girildi: ${this.value}`);
+                }
+            });
+
+            // Banka search
+            document.getElementById('bankaSearchBtn').addEventListener('click', function() {
+                showModal('bankaSearchModal');
+                addLog('🏦 Banka kodu arama açıldı');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('search-item') && e.target.closest('#bankaSearchResults')) {
+                    document.querySelectorAll('#bankaSearchResults .search-item').forEach(i => i.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedBanka = e.target.dataset.banka;
+                }
+            });
+
+            document.getElementById('bankaSearchOk').addEventListener('click', function() {
+                if (!selectedBanka) {
+                    alert('Lütfen bir banka seçin');
+                    return;
+                }
+                document.getElementById('havaleBanka').value = selectedBanka;
+                hideModal('bankaSearchModal');
+                addLog(`🏦 STEP 13: Banka kodu seçildi: ${selectedBanka}`);
+            });
+
+            // Cari search
+            document.getElementById('cariSearchBtn').addEventListener('click', function() {
+                showModal('cariSearchModal');
+                addLog('👤 Cari kodu arama açıldı');
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('search-item') && e.target.closest('#cariSearchResults')) {
+                    document.querySelectorAll('#cariSearchResults .search-item').forEach(i => i.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedCari = e.target.dataset.cari;
+                }
+            });
+
+            document.getElementById('cariSearchOk').addEventListener('click', function() {
+                if (!selectedCari) {
+                    alert('Lütfen bir cari seçin');
+                    return;
+                }
+                document.getElementById('havaleCari').value = selectedCari;
+                hideModal('cariSearchModal');
+                addLog(`👤 STEP 14: Cari kodu seçildi: ${selectedCari}`);
+            });
+
+            // Manual entry validation
+            document.getElementById('havaleBanka').addEventListener('input', function() {
+                if (this.value && workflowStep >= 11) {
+                    const validBanks = ['001', '010', '012', '062'];
+                    if (!validBanks.includes(this.value)) {
+                        this.style.borderColor = '#ff6b6b';
+                        addLog(`⚠️ STEP 13: Geçersiz banka kodu: ${this.value}`);
+                    } else {
+                        this.style.borderColor = '#4caf50';
+                        addLog(`🏦 STEP 13: Banka kodu girildi: ${this.value}`);
+                    }
+                }
+            });
+
+            document.getElementById('havaleCari').addEventListener('input', function() {
+                if (this.value && workflowStep >= 11) {
+                    if (this.value.length < 5) {
+                        this.style.borderColor = '#ff6b6b';
+                        addLog(`⚠️ STEP 14: Eksik cari kodu: ${this.value}`);
+                    } else {
+                        this.style.borderColor = '#4caf50';
+                        addLog(`👤 STEP 14: Cari kodu girildi: ${this.value}`);
+                    }
+                }
+            });
+
+            document.getElementById('havaleTutar').addEventListener('input', function() {
+                if (this.value && workflowStep >= 11) {
+                    addLog(`💰 STEP 15: Tutar girildi: ${this.value}`);
+                }
+            });
+
+            document.getElementById('havaleAciklama').addEventListener('input', function() {
+                if (this.value && workflowStep >= 11) {
+                    addLog(`📝 STEP 16: Açıklama girildi: ${this.value}`);
+                }
+            });
+
+            // Step 17: Kaydet
+            document.getElementById('havaleKaydet').addEventListener('click', function() {
+                workflowStep = 17;
+                highlightOCRTarget(this);
+                const banka = document.getElementById('havaleBanka').value;
+                const cari = document.getElementById('havaleCari').value;
+                const tutar = document.getElementById('havaleTutar').value;
+                const aciklama = document.getElementById('havaleAciklama').value;
+
+                if (!banka || !cari || !tutar || !aciklama) {
+                    alert('Lütfen tüm alanları doldurun');
+                    return;
+                }
+
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 500);
+                showProgress(30);
+                addLog('✅ STEP 17: "Kaydet" butonuna tıklandı');
+                updateAutomationStatus('Step 17: Kaydediliyor...');
+                
+                setTimeout(() => {
+                    showProgress(100);
+                    addLog('💾 Havale başarıyla kaydedildi!');
+                    updateIslemGecmisi(banka, cari, tutar, aciklama);
+                    clearHavaleForm();
+                    setTimeout(() => showProgress(0), 500);
+                    updateAutomationStatus('Step 17: Kaydet tamamlandı');
+                }, 1500);
+            });
+
+            // Step 18: Kapat
+            document.getElementById('havaleKapat').addEventListener('click', function() {
+                workflowStep = 18;
+                highlightOCRTarget(this);
+                hideModal('havaleAlmaModal');
+                addLog('✅ STEP 18: "Kapat" butonuna tıklandı - Workflow tamamlandı! 🎉');
+                updateAutomationStatus('Workflow Tamamlandı! ✅');
+                
+                setTimeout(() => {
+                    workflowStep = 0;
+                    updateAutomationStatus('Hazır - Yeni workflow için bekliyor');
+                }, 2000);
+            });
+
+            // Cancel buttons
+            document.getElementById('bankaIzlemeCancel').addEventListener('click', function() {
+                hideModal('bankaIzlemeModal');
+                addLog('❌ Banka dialog iptal edildi');
+            });
+
+            document.getElementById('hesapSearchCancel').addEventListener('click', function() {
+                hideModal('hesapSearchModal');
+                addLog('❌ Hesap arama iptal edildi');
+            });
+
+            document.getElementById('yeniIslemCancel').addEventListener('click', function() {
+                hideModal('yeniIslemModal');
+                addLog('❌ Yeni işlem modal iptal edildi');
+            });
+
+            document.getElementById('bankaSearchCancel').addEventListener('click', function() {
+                hideModal('bankaSearchModal');
+                addLog('❌ Banka arama iptal edildi');
+            });
+
+            document.getElementById('cariSearchCancel').addEventListener('click', function() {
+                hideModal('cariSearchModal');
+                addLog('❌ Cari arama iptal edildi');
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                    e.preventDefault();
+                    toggleDebugMode();
+                } else if (debugMode) {
+                    if (e.key === 'F12') {
+                        e.preventDefault();
+                        toggleLog();
+                    } else if (e.key === 'F11') {
+                        e.preventDefault();
+                        toggleOCRHighlight();
+                    } else if (e.ctrlKey && e.key === 'd') {
+                        e.preventDefault();
+                        fillDemoData();
+                    }
+                }
+            });
+        }
+
+        function highlightOCRTarget(element) {
+            document.querySelectorAll('.ocr-target.highlight').forEach(el => {
+                el.classList.remove('highlight');
+            });
+            
+            element.classList.add('highlight');
+            
+            setTimeout(() => {
+                element.classList.remove('highlight');
+            }, 2000);
+        }
+
+        function renderHesapList() {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            
+            filteredHesapData.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'search-item ocr-target';
+                div.setAttribute('data-hesap', item.hesap);
+                div.setAttribute('data-aciklama', item.aciklama);
+                div.innerHTML = `<strong>${item.hesap}</strong> - ${item.aciklama}`;
+                searchResults.appendChild(div);
+            });
+            
+            if (filteredHesapData.length === 0) {
+                searchResults.innerHTML = '<div style="padding: 10px; color: #999; text-align: center;">Sonuç bulunamadı</div>';
+            }
+        }
+
+        function displayAccountData(hesapNo, startDate, endDate) {
+            const workArea = document.getElementById('workArea');
+            workArea.innerHTML = `
+                <h3 style="margin-bottom: 15px; color: #333;">Hesap Hareketleri</h3>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    <strong>Hesap:</strong> ${hesapNo} | 
+                    <strong>Tarih:</strong> ${startDate} - ${endDate}
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tarih</th>
+                            <th>İşlem</th>
+                            <th>Açıklama</th>
+                            <th>Gelen</th>
+                            <th>Giden</th>
+                            <th>Bakiye</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>${startDate}</td>
+                            <td>Transfer</td>
+                            <td>Açılış Bakiyesi</td>
+                            <td>125.450,75</td>
+                            <td>-</td>
+                            <td>125.450,75</td>
+                        </tr>
+                        <tr>
+                            <td>${startDate}</td>
+                            <td>EFT</td>
+                            <td>Müşteri Ödemesi</td>
+                            <td>3.250,00</td>
+                            <td>-</td>
+                            <td>128.700,75</td>
+                        </tr>
+                        <tr>
+                            <td>${startDate}</td>
+                            <td>Havale</td>
+                            <td>Tedarikçi Ödemesi</td>
+                            <td>-</td>
+                            <td>2.150,50</td>
+                            <td>126.550,25</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border: 1px solid #4caf50; border-radius: 5px;">
+                    <strong>✅ Hesap hareketleri yüklendi!</strong><br>
+                    "Yeni" butonunu kullanarak yeni işlem ekleyebilirsiniz.
+                </div>
+            `;
+        }
+
+        function updateIslemGecmisi(banka, cari, tutar, aciklama) {
+            const gecmisDiv = document.getElementById('islemGecmisi');
+            const timestamp = new Date().toLocaleTimeString('tr-TR');
+            const yeniIslem = `
+                <div style="border-bottom: 1px solid #eee; padding: 5px 0; margin-bottom: 5px;">
+                    <div style="font-weight: bold; color: #4caf50;">${timestamp}</div>
+                    <div>Havale: ${tutar} TL</div>
+                    <div style="font-size: 9px; color: #666;">${aciklama}</div>
+                </div>
+            `;
+            
+            if (gecmisDiv.textContent.includes('Henüz işlem yok')) {
+                gecmisDiv.innerHTML = yeniIslem;
+            } else {
+                gecmisDiv.innerHTML = yeniIslem + gecmisDiv.innerHTML;
+            }
+        }
+
+        function clearHavaleForm() {
+            document.getElementById('havaleBanka').value = '';
+            document.getElementById('havaleCari').value = '';
+            document.getElementById('havaleTutar').value = '';
+            document.getElementById('havaleAciklama').value = '';
+            
+            document.getElementById('havaleBanka').style.borderColor = '#ccc';
+            document.getElementById('havaleCari').style.borderColor = '#ccc';
+        }
+
+        function showDropdown(id) {
+            hideAllDropdowns();
+            const dropdown = document.getElementById(id);
+            dropdown.style.display = 'block';
+        }
+
+        function hideAllDropdowns() {
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+        }
+
+        function showModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function showProgress(percent) {
+            const bar = document.getElementById('progressBar');
+            bar.style.transform = `scaleX(${percent / 100})`;
+        }
+
+        function addLog(message) {
+            if (!debugMode) return;
+            
+            const timestamp = new Date().toLocaleTimeString('tr-TR');
+            const logContent = document.getElementById('logContent');
+            if (logContent) {
+                logContent.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+        }
+
+        function toggleDebugMode() {
+            debugMode = !debugMode;
+            document.body.classList.toggle('debug-mode', debugMode);
+            
+            if (debugMode) {
+                console.log('🔧 DEBUG MODE ACTIVATED');
+                addLog('🔧 DEBUG MODE: Preston RPA Test Environment');
+                addLog('📋 OCR Targets available for testing');
+                addLog('⌨️ F12: Log Panel, F11: OCR Highlight, Ctrl+D: Demo Data');
+                addLog('🤖 prestonAPI.runFullWorkflow() for automation');
+            } else {
+                console.log('Preston Xi - Normal operation mode');
+                const logPanel = document.getElementById('logPanel');
+                if (logPanel) {
+                    logPanel.classList.remove('debug-active');
+                }
+            }
+        }
+
+        function toggleLog() {
+            if (!debugMode) return;
+            
+            logVisible = !logVisible;
+            const logPanel = document.getElementById('logPanel');
+            logPanel.classList.toggle('debug-active', logVisible);
+            addLog(logVisible ? '📋 Log panel açıldı' : '📋 Log panel kapatıldı');
+        }
+
+        function updateAutomationStatus(status) {
+            document.getElementById('automationStatus').textContent = `RPA: ${status}`;
+        }
+
+        function toggleOCRHighlight() {
+            if (!debugMode) return;
+            
+            const targets = document.querySelectorAll('.ocr-target');
+            const isHighlighted = document.querySelector('.ocr-target.highlight');
+            
+            targets.forEach(target => {
+                if (isHighlighted) {
+                    target.classList.remove('highlight');
+                } else {
+                    target.classList.add('highlight');
+                }
+            });
+            
+            addLog(isHighlighted ? '🎯 OCR highlights kapatıldı' : '🎯 OCR highlights açıldı');
+        }
+
+        function fillDemoData() {
+            selectedHesap = '6293986';
+            document.getElementById('hesapNoInput').value = selectedHesap;
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('baslangicTarih').value = today;
+            document.getElementById('bitisTarih').value = today;
+            
+            if (!document.getElementById('havaleAlmaModal').classList.contains('hidden')) {
+                document.getElementById('havaleBanka').value = '062';
+                document.getElementById('havaleCari').value = '120.12.001';
+                document.getElementById('havaleTutar').value = '1250.75';
+                document.getElementById('havaleAciklama').value = 'POS Satış - Demo Test';
+            }
+            
+            addLog('🧪 Demo veriler dolduruldu');
+        }
+
+        // Click outside to close dropdowns
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-item')) {
+                hideAllDropdowns();
+            }
+        });
+
+        // Expose API for automation testing
+        window.prestonAPI = {
+            // 18-Step Workflow Functions
+            step1_clickFinansIzle: () => document.getElementById('finansIzleMenu').click(),
+            step2_selectBankaHesapIzleme: () => document.querySelector('[data-action="banka-hesap-izleme"]').click(),
+            step3_clickBankaRibbon: () => document.getElementById('bankaRibbonIcon').click(),
+            step4_clickBankaTamam: () => {
+                document.getElementById('bankaIslemTuru').value = 'hesap-izleme';
+                document.getElementById('bankaIzlemeOk').click();
+            },
+            step5_clickHesapSearch: () => document.getElementById('hesapSearchBtn').click(),
+            step6_selectHesap: (hesapNo) => {
+                const item = document.querySelector(`[data-hesap="${hesapNo}"]`);
+                if (item) item.click();
+            },
+            step7a_clickFirstTamam: () => document.getElementById('hesapSearchOk').click(),
+            step7b_clickSecondTamam: () => document.getElementById('hesapSearchOk').click(),
+            step8_fillDatesAndRefresh: (date) => {
+                document.getElementById('baslangicTarih').value = date;
+                document.getElementById('bitisTarih').value = date;
+                document.getElementById('yenileBtn').click();
+            },
+            step9_clickYeni: () => document.getElementById('yeniBtn').click(),
+            step10_selectHavaleAlma: () => document.querySelector('[data-action="havale-alma"]').click(),
+            step11_clickYeniHavale: () => document.getElementById('yeniHavaleBtn').click(),
+            step12_fillBelgeTarih: (date) => document.getElementById('havaleBelgeTarihi').value = date,
+            step12b_fillValorTarih: (date) => document.getElementById('havaleValorTarihi').value = date,
+            step13_fillBanka: (banka) => document.getElementById('havaleBanka').value = banka,
+            step13_selectBanka: (bankaKodu) => {
+                document.getElementById('bankaSearchBtn').click();
+                setTimeout(() => {
+                    const item = document.querySelector(`[data-banka="${bankaKodu}"]`);
+                    if (item) {
+                        item.click();
+                        document.getElementById('bankaSearchOk').click();
+                    }
+                }, 100);
+            },
+            step14_fillCari: (cari) => document.getElementById('havaleCari').value = cari,
+            step14_selectCari: (cariKodu) => {
+                document.getElementById('cariSearchBtn').click();
+                setTimeout(() => {
+                    const item = document.querySelector(`[data-cari="${cariKodu}"]`);
+                    if (item) {
+                        item.click();
+                        document.getElementById('cariSearchOk').click();
+                    }
+                }, 100);
+            },
+            step15_fillTutar: (tutar) => document.getElementById('havaleTutar').value = tutar,
+            step16_fillAciklama: (aciklama) => document.getElementById('havaleAciklama').value = aciklama,
+            step17_clickKaydet: () => document.getElementById('havaleKaydet').click(),
+            step18_clickKapat: () => document.getElementById('havaleKapat').click(),
+            
+            // Utility functions
+            getCurrentStep: () => workflowStep,
+            getHesapSearchStep: () => hesapSearchStep,
+            fillDemoData: fillDemoData,
+            getLog: () => document.getElementById('logContent').textContent,
+            clearLog: () => document.getElementById('logContent').innerHTML = '',
+            toggleLog: toggleLog,
+            toggleOCRHighlight: toggleOCRHighlight,
+            
+            // OCR Testing functions
+            getOCRTargets: () => {
+                const targets = [];
+                document.querySelectorAll('.ocr-target').forEach(el => {
+                    targets.push({
+                        id: el.getAttribute('data-ocr-id'),
+                        text: el.textContent.trim() || el.placeholder || el.value || el.title,
+                        tagName: el.tagName,
+                        className: el.className,
+                        visible: !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none'
+                    });
+                });
+                return targets;
+            },
+            
+            // Full workflow automation
+            runFullWorkflow: async (hesapNo = '6293986', tutar = '1250.75') => {
+                addLog('🤖 Full workflow automation başlatıldı...');
+                const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                
+                try {
+                    await delay(500);
+                    window.prestonAPI.step1_clickFinansIzle();
+                    await delay(500);
+                    window.prestonAPI.step2_selectBankaHesapIzleme();
+                    await delay(500);
+                    window.prestonAPI.step3_clickBankaRibbon();
+                    await delay(500);
+                    window.prestonAPI.step4_clickBankaTamam();
+                    await delay(500);
+                    window.prestonAPI.step5_clickHesapSearch();
+                    await delay(500);
+                    window.prestonAPI.step6_selectHesap(hesapNo);
+                    await delay(500);
+                    window.prestonAPI.step7a_clickFirstTamam();
+                    await delay(500);
+                    window.prestonAPI.step7b_clickSecondTamam();
+                    await delay(500);
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    window.prestonAPI.step8_fillDatesAndRefresh(today);
+                    await delay(2000);
+                    
+                    window.prestonAPI.step9_clickYeni();
+                    await delay(500);
+                    window.prestonAPI.step10_selectHavaleAlma();
+                    await delay(500);
+                    window.prestonAPI.step11_clickYeniHavale();
+                    await delay(500);
+                    window.prestonAPI.step12_fillBelgeTarih(today);
+                    window.prestonAPI.step12b_fillValorTarih(today);
+                    window.prestonAPI.step13_fillBanka('062');
+                    window.prestonAPI.step14_fillCari('120.12.001');
+                    window.prestonAPI.step15_fillTutar(tutar);
+                    window.prestonAPI.step16_fillAciklama('RPA Auto Test');
+                    await delay(500);
+                    window.prestonAPI.step17_clickKaydet();
+                    await delay(2000);
+                    window.prestonAPI.step18_clickKapat();
+                    
+                    addLog('🎉 Full workflow automation tamamlandı!');
+                    return true;
+                } catch (error) {
+                    addLog(`❌ Workflow error: ${error.message}`);
+                    return false;
+                }
+            }
+        };
+
+        // Auto-demo mode
+        function runAutoDemo() {
+            if (debugMode) {
+                console.log('🎯 Preston Complete 18-Step Workflow Simulator Ready!');
+                console.log('📋 OCR Test: F12 (log panel), F11 (OCR highlight)');
+                console.log('🧪 Demo: Ctrl+D (fill demo data)');
+                console.log('🤖 Auto: prestonAPI.runFullWorkflow()');
+                console.log('📊 Available OCR Targets:', window.prestonAPI.getOCRTargets().length);
+            } else {
+                console.log('Preston Xi sistem hazır.');
+            }
+        }
+
+        setTimeout(runAutoDemo, 1000);
+    </script>
+</body>
+</html><!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preston XI - Kurumsal Kaynak Yönetim Sistemi</title>
+    <title>Preston Xi Kurumsal Kaynak Yönetim Sistemi</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            font-size: 11px;
-            background: linear-gradient(to bottom, #e4f4fd 0%, #d6ebf7 100%);
+            background: #f0f0f0;
             overflow: hidden;
         }
 
-        /* Window Chrome */
-        .window-chrome {
-            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 8px;
+        /* Main Preston Window */
+        .preston-window {
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+            border: 1px solid #999;
+        }
+
+        /* Title Bar */
+        .title-bar {
+            background: linear-gradient(to bottom, #4a4a4a, #2a2a2a);
             color: white;
+            padding: 8px 15px;
             font-size: 12px;
-            border-bottom: 1px solid #1e4d72;
-        }
-
-        .window-title {
+            border-bottom: 1px solid #666;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
         }
 
-        .window-icon {
-            width: 16px;
-            height: 16px;
-            background: #ffd700;
-            border-radius: 2px;
+        .title-text {
+            font-weight: bold;
         }
 
-        .window-controls {
+        .title-controls {
             display: flex;
-            gap: 2px;
+            gap: 5px;
         }
 
-        .window-controls button {
+        .title-btn {
             width: 20px;
             height: 16px;
-            border: none;
+            background: #666;
+            border: 1px solid #888;
+            color: white;
             font-size: 10px;
             cursor: pointer;
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-
-        .window-controls button:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        /* Main Menu Bar */
-        .menu-bar {
-            background: linear-gradient(to bottom, #f0f8ff 0%, #e1f0ff 50%, #d0e8ff 100%);
-            border-bottom: 1px solid #b8d4f0;
-            height: 24px;
             display: flex;
             align-items: center;
-            padding: 0 4px;
+            justify-content: center;
+        }
+
+        /* Menu Bar */
+        .menu-bar {
+            background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
+            border-bottom: 1px solid #ccc;
+            padding: 5px;
+            display: flex;
+            gap: 1px;
         }
 
         .menu-item {
-            padding: 4px 12px;
+            padding: 8px 12px;
+            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+            border: 1px solid #ccc;
             cursor: pointer;
-            border-radius: 2px;
             font-size: 11px;
             color: #333;
             position: relative;
-            transition: all 0.1s;
+            font-weight: 500;
         }
 
         .menu-item:hover {
-            background: linear-gradient(to bottom, #fff 0%, #f0f8ff 100%);
-            border: 1px solid #b8d4f0;
-            padding: 3px 11px;
+            background: linear-gradient(to bottom, #e0e0ff, #d0d0ff);
         }
 
         .menu-item.active {
-            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
-            color: white;
-            border: 1px solid #1e4d72;
-            padding: 3px 11px;
+            background: linear-gradient(to bottom, #cce0ff, #aaccff);
+            border-color: #66aaff;
+            font-weight: bold;
         }
 
-        /* Ribbon/Toolbar */
+        /* Dropdown Menu */
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #999;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 11px;
+            border-bottom: 1px solid #eee;
+            font-weight: normal;
+        }
+
+        .dropdown-item:hover {
+            background: #e0e0ff;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Ribbon */
         .ribbon {
-            background: linear-gradient(to bottom, #f8fcff 0%, #e8f4ff 100%);
-            border-bottom: 1px solid #c0d8f0;
-            height: 80px;
-            padding: 4px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
+            background: linear-gradient(to bottom, #f5f5f5, #e5e5e5);
+            border-bottom: 1px solid #bbb;
+            padding: 10px;
+            display: none;
+        }
+
+        .ribbon.active {
+            display: block;
         }
 
         .ribbon-group {
-            border: 1px solid #d0e0f0;
-            border-radius: 3px;
-            padding: 4px;
-            min-width: 120px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .ribbon-group-header {
-            font-size: 10px;
-            color: #666;
+            display: inline-block;
+            vertical-align: top;
+            margin-right: 20px;
             text-align: center;
-            margin-bottom: 2px;
-        }
-
-        .ribbon-icons {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            justify-content: center;
         }
 
         .ribbon-icon {
-            width: 32px;
-            height: 32px;
-            border: 1px solid transparent;
-            border-radius: 2px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+            border: 1px solid #ccc;
+            margin: 0 auto 5px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-size: 24px 24px;
-            background-repeat: no-repeat;
-            background-position: center;
-            transition: all 0.1s;
+            font-size: 24px;
+            color: #333;
+            border-radius: 3px;
             position: relative;
         }
 
-        .ribbon-icon:hover {
-            border: 1px solid #4a90e2;
-            background-color: rgba(74, 144, 226, 0.1);
-        }
-
-        .ribbon-icon:active {
-            background-color: rgba(74, 144, 226, 0.2);
-        }
-
-        .ribbon-icon::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #333;
+        .ribbon-icon.bank-icon {
+            background: linear-gradient(to bottom, #4a90e2, #357abd);
+            border-color: #2e5984;
             color: white;
-            padding: 2px 6px;
-            border-radius: 2px;
-            font-size: 9px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 1000;
         }
 
-        .ribbon-icon:hover::after {
-            opacity: 1;
+        .ribbon-icon:hover {
+            background: linear-gradient(to bottom, #e0e0ff, #d0d0ff);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .ribbon-icon.bank-icon:hover {
+            background: linear-gradient(to bottom, #5aa0f2, #4080cd);
+        }
+
+        .ribbon-label {
+            font-size: 9px;
+            color: #555;
+            font-weight: bold;
         }
 
         /* Main Content Area */
         .main-content {
-            height: calc(100vh - 134px - 24px);
             display: flex;
-            flex-direction: column;
-            background: white;
+            height: calc(100vh - 145px);
         }
 
-        .toolbar {
-            background: linear-gradient(to bottom, #f5f5f5 0%, #e8e8e8 100%);
-            border-bottom: 1px solid #ccc;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            padding: 0 8px;
-            gap: 4px;
-        }
-
-        .toolbar-button {
-            padding: 2px 8px;
-            border: 1px solid #aaa;
-            background: linear-gradient(to bottom, #fff 0%, #f0f0f0 100%);
-            font-size: 10px;
-            cursor: pointer;
-            border-radius: 2px;
-        }
-
-        .toolbar-button:hover {
-            background: linear-gradient(to bottom, #f0f8ff 0%, #e0f0ff 100%);
-        }
-
-        .toolbar-separator {
-            width: 1px;
-            height: 20px;
-            background: #ccc;
-            margin: 0 4px;
-        }
-
-        /* Data Grid */
-        .grid-container {
-            flex: 1;
-            overflow: auto;
-            border: 1px solid #ccc;
-            position: relative;
-        }
-
-        .grid {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-        }
-
-        .grid th {
-            background: linear-gradient(to bottom, #f8f8f8 0%, #e8e8e8 100%);
-            border: 1px solid #ccc;
-            padding: 4px 8px;
-            text-align: left;
-            font-weight: normal;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .grid th:hover {
-            background: linear-gradient(to bottom, #e8f4ff 0%, #d8e8ff 100%);
-        }
-
-        .grid td {
-            border: 1px solid #e0e0e0;
-            padding: 3px 8px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .grid tr:nth-child(even) {
+        .left-panel {
+            width: 280px;
             background: #f8f8f8;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
         }
 
-        .grid tr:hover {
-            background: #e8f4ff;
+        .work-area {
+            flex: 1;
+            background: white;
+            padding: 10px;
+            overflow: auto;
         }
 
-        .grid tr.selected {
-            background: #4a90e2;
-            color: white;
-        }
-
-        .grid tr.selected td {
-            border-color: #2e5f95;
-        }
-
-        .grid td.editable:hover {
-            background: #fff8dc;
-            border: 2px solid #ffd700;
-            padding: 2px 7px;
-        }
-
-        .grid td input {
-            width: 100%;
-            border: none;
-            background: transparent;
-            font-size: 11px;
-            padding: 0;
-            outline: none;
-        }
-
-        /* Status Bar */
-        .status-bar {
-            background: linear-gradient(to bottom, #f0f0f0 0%, #e0e0e0 100%);
-            border-top: 1px solid #ccc;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            padding: 0 8px;
-            gap: 20px;
-            font-size: 10px;
-            color: #666;
-        }
-
-        .status-section {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .status-separator {
-            width: 1px;
-            height: 16px;
-            background: #bbb;
-        }
-
-        /* Modal Dialogs */
+        /* Modals */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.3);
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
         }
 
         .modal {
             background: white;
-            border: 2px solid #4a90e2;
-            border-radius: 4px;
+            border: 1px solid #999;
+            border-radius: 5px;
+            padding: 20px;
             min-width: 400px;
-            max-width: 80vw;
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 700px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .modal-header {
-            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
-            color: white;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-        }
-
-        .modal-body {
-            padding: 16px;
-            overflow-y: auto;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .form-group label {
-            font-size: 11px;
             font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
             color: #333;
         }
 
-        .form-group input, .form-group select {
-            padding: 4px 8px;
-            border: 1px solid #ccc;
-            border-radius: 2px;
-            font-size: 11px;
+        .modal-content {
+            margin-bottom: 20px;
         }
 
-        .form-group input:focus, .form-group select:focus {
+        .modal-buttons {
+            text-align: right;
+            gap: 10px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
+            cursor: pointer;
+            font-size: 11px;
+            border-radius: 3px;
+            font-weight: 500;
+            min-width: 70px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
+        }
+
+        .btn:active {
+            background: linear-gradient(to bottom, #d8d8d8, #c8c8c8);
+        }
+
+        .btn.primary {
+            background: linear-gradient(to bottom, #4a90e2, #357abd);
+            color: white;
+            border-color: #2e5984;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(to bottom, #5aa0f2, #4080cd);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-label {
+            width: 100px;
+            font-size: 11px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            font-size: 11px;
+            margin-left: 10px;
+            border-radius: 2px;
+        }
+
+        .form-input:focus {
             border-color: #4a90e2;
             outline: none;
             box-shadow: 0 0 3px rgba(74, 144, 226, 0.3);
         }
 
-        .modal-buttons {
-            padding: 12px 16px;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
+        /* Search Dialog */
+        .search-dialog {
+            width: 550px;
         }
 
-        .btn {
-            padding: 6px 16px;
-            border: 1px solid #ccc;
-            border-radius: 2px;
-            font-size: 11px;
-            cursor: pointer;
-            background: linear-gradient(to bottom, #fff 0%, #f0f0f0 100%);
-        }
-
-        .btn:hover {
-            background: linear-gradient(to bottom, #f0f8ff 0%, #e0f0ff 100%);
-            border-color: #4a90e2;
-        }
-
-        .btn.primary {
-            background: linear-gradient(to bottom, #4a90e2 0%, #2e5f95 100%);
-            color: white;
-            border-color: #1e4d72;
-        }
-
-        .btn.primary:hover {
-            background: linear-gradient(to bottom, #5ba0f2 0%, #3e6fa5 100%);
-        }
-
-        /* Context Menu */
-        .context-menu {
-            position: fixed;
+        .search-results {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            margin: 10px 0;
             background: white;
-            border: 1px solid #ccc;
-            border-radius: 2px;
-            padding: 2px 0;
-            min-width: 150px;
-            box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
-            display: none;
-            z-index: 1001;
+        }
+
+        .search-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
             font-size: 11px;
         }
 
-        .context-menu-item {
-            padding: 6px 12px;
-            cursor: pointer;
+        .search-item:hover {
+            background: #f0f0ff;
+        }
+
+        .search-item.selected {
+            background: #cce0ff;
+            font-weight: bold;
+        }
+
+        .search-item strong {
+            color: #2e5984;
+        }
+
+        /* Progress Indicator */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #4a90e2;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+            z-index: 3000;
+        }
+
+        /* Debug mode - Hidden by default for production */
+        .debug-mode {
+            display: none;
+        }
+
+        .debug-mode.active {
+            display: block;
+        }
+
+        /* Hide debug elements in production mode */
+        .log-panel {
+            display: none !important;
+        }
+
+        .log-panel.debug-active {
+            display: block !important;
+            position: fixed;
+            bottom: 25px;
+            right: 20px;
+            width: 350px;
+            height: 250px;
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 10px;
+            border: 1px solid #666;
+            border-bottom: none;
+            overflow-y: auto;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .log-panel .log-header {
+            color: #ffff00;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25px;
+            background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
+            border-top: 1px solid #999;
+            padding: 5px 10px;
+            font-size: 11px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
         }
 
-        .context-menu-item:hover {
-            background: #e8f4ff;
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
         }
 
-        .context-menu-separator {
-            height: 1px;
-            background: #e0e0e0;
-            margin: 2px 0;
+        /* Banka Hesap İzleme Dialog */
+        .banka-dialog {
+            width: 650px;
         }
 
-        /* Loading States */
-        .loading {
-            opacity: 0.7;
-            pointer-events: none;
+        .banka-dropdown {
+            margin: 10px 0;
+        }
+
+        .banka-dropdown select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            font-size: 11px;
+        }
+
+        /* Table styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        .data-table th,
+        .data-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .data-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .data-table tr:hover {
+            background: #f0f0ff;
+        }
+
+        /* OCR Target Elements - Hidden in production */
+        .ocr-target {
             position: relative;
         }
 
-        .loading::after {
+        .ocr-target::after {
             content: '';
             position: absolute;
-            top: 50%;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px dashed #ff6600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: none;
+        }
+
+        .debug-mode .ocr-target::after {
+            display: block;
+        }
+
+        .ocr-target.highlight::after {
+            opacity: 1;
+        }
+
+        /* Special styling for key UI elements */
+        .finans-izle-text {
+            font-weight: bold;
+            color: #2e5984;
+        }
+
+        .banka-text {
+            font-weight: bold;
+            color: #4a90e2;
+        }
+
+        .tamam-text {
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .yenile-text {
+            font-weight: bold;
+            color: #d84315;
+        }
+
+        .yeni-text {
+            font-weight: bold;
+            color: #7b1fa2;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Animation effects */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
             left: 50%;
-            width: 20px;
-            height: 20px;
-            margin: -10px 0 0 -10px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #4a90e2;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1000;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 1024px) {
-            .ribbon {
-                height: auto;
-                flex-wrap: wrap;
-            }
-            
-            .ribbon-group {
-                min-width: 100px;
-            }
-        }
-
-        /* Custom scrollbars */
-        ::-webkit-scrollbar {
-            width: 16px;
-            height: 16px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 2px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-
-        ::-webkit-scrollbar-corner {
-            background: #f1f1f1;
+        .tooltip:hover::before {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <!-- Window Chrome -->
-    <div class="window-chrome">
-        <div class="window-title">
-            <div class="window-icon"></div>
-            <span>Banka Hesap İşleme - Preston XI Kurumsal Kaynak Yönetim Sistemi</span>
-        </div>
-        <div class="window-controls">
-            <button>-</button>
-            <button>□</button>
-            <button>×</button>
-        </div>
-    </div>
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar"></div>
 
-    <!-- Main Menu Bar -->
-    <div class="menu-bar">
-        <div class="menu-item" data-menu="muhasebe">Muhasebe</div>
-        <div class="menu-item" data-menu="gorgider">Gör / Gider</div>
-        <div class="menu-item" data-menu="budce">Büdçe</div>
-        <div class="menu-item" data-menu="finans-odeme">Finans - Ödeme</div>
-        <div class="menu-item" data-menu="finans-tahsilat">Finans - Tahsilat</div>
-        <div class="menu-item" data-menu="finans-ize">Finans - İze</div>
-        <div class="menu-item" data-menu="sarmana">Şarmana</div>
-        <div class="menu-item" data-menu="satis">Satış</div>
-        <div class="menu-item" data-menu="stok">Stok</div>
-        <div class="menu-item" data-menu="uretim">Üretim</div>
-        <div class="menu-item" data-menu="personel">Personel</div>
-        <div class="menu-item" data-menu="sabit-kiymet">Sabit Kıymet</div>
-        <div class="menu-item" data-menu="hesap-tablari">Hesap Tabları</div>
-        <div class="menu-item" data-menu="diger">Diğer</div>
-    </div>
-
-    <!-- Ribbon/Toolbar -->
-    <div class="ribbon" id="ribbon">
-        <!-- Default ribbon content -->
-        <div class="ribbon-group">
-            <div class="ribbon-group-header">Genel</div>
-            <div class="ribbon-icons">
-                <div class="ribbon-icon" data-tooltip="Yeni Kayıt" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z%22/></svg>')"></div>
-                <div class="ribbon-icon" data-tooltip="Kaydet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z%22/></svg>')"></div>
-                <div class="ribbon-icon" data-tooltip="Sil" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23d32f2f%22 viewBox=%220 0 24 24%22><path d=%22M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z%22/></svg>')"></div>
+    <!-- Preston Main Window -->
+    <div class="preston-window">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div class="title-text">Banka Hesap İşleme - Preston Xi Kurumsal Kaynak Yönetim Sistemi</div>
+            <div class="title-controls">
+                <div class="title-btn" title="Minimize">_</div>
+                <div class="title-btn" title="Maximize">□</div>
+                <div class="title-btn" title="Close">×</div>
             </div>
         </div>
-        <div class="ribbon-group">
-            <div class="ribbon-group-header">Araçlar</div>
-            <div class="ribbon-icons">
-                <div class="ribbon-icon" data-tooltip="Yazdır" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z%22/></svg>')"></div>
-                <div class="ribbon-icon" data-tooltip="Excel" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                <div class="ribbon-icon" data-tooltip="Filtre" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="toolbar">
-            <div class="toolbar-button">Kayıt</div>
-            <div class="toolbar-button">Belge Fişi ve İşlemler</div>
-            <div class="toolbar-button">Özel Fişler</div>
-            <div class="toolbar-separator"></div>
-            <select style="font-size: 10px;">
-                <option>Y</option>
-            </select>
-            <div class="toolbar-button">Temelke</div>
-            <div class="toolbar-button">Zirve</div>
-        </div>
-
-        <div class="grid-container">
-            <table class="grid" id="mainGrid">
-                <thead>
-                    <tr>
-                        <th style="width: 80px">Hesaplat Tar</th>
-                        <th style="width: 60px">Seri</th>
-                        <th style="width: 80px">No</th>
-                        <th style="width: 100px">Referans No</th>
-                        <th style="width: 120px">Kara Hesap</th>
-                        <th style="width: 150px">Karta Hesap Kodu Hesap Adı</th>
-                        <th style="width: 100px">Borç Tutarı</th>
-                        <th style="width: 100px">Alacak Tutarı</th>
-                        <th style="width: 100px">Doviz Cinsi</th>
-                        <th style="width: 100px">Doviz Tutarı</th>
-                        <th style="width: 100px">Belge Tarihi</th>
-                        <th style="width: 120px">Açıklama</th>
-                        <th style="width: 150px">Detay Tarih</th>
-                        <th style="width: 100px">Özel Kod</th>
-                        <th style="width: 80px">Yaş Ay</th>
-                        <th style="width: 100px">Vade Tarihi</th>
-                        <th style="width: 100px">Özel Fişler No</th>
-                    </tr>
-                </thead>
-                <tbody id="gridBody">
-                    <!-- Sample data matching the original -->
-                    <tr>
-                        <td>25.07.2025</td>
-                        <td>BNK-FT</td>
-                        <td>44633</td>
-                        <td>Banka</td>
-                        <td>6250744</td>
-                        <td>GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620091 İNS</td>
-                        <td>562.12</td>
-                        <td>0.00</td>
-                        <td>0.00</td>
-                        <td>Banka Virman</td>
-                        <td>GARANTİ BANKASI 620091 İNS GARANTİ 620091 6250744 620</td>
-                        <td>25.07.2025</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>25.07.2025</td>
-                        <td>BNK-FT</td>
-                        <td>44632</td>
-                        <td>Banka</td>
-                        <td>6250744</td>
-                        <td>GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ</td>
-                        <td>1.301.96</td>
-                        <td>0.00</td>
-                        <td>0.00</td>
-                        <td>Banka Virman</td>
-                        <td>GARANTİ BANKASI 620091 İNS GARANTİ 620091 BAĞIŞ</td>
-                        <td>25.07.2025</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>25.07.2025</td>
-                        <td>BNK-FT</td>
-                        <td>44631</td>
-                        <td>Banka</td>
-                        <td>6250893</td>
-                        <td>GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ URDU HAF</td>
-                        <td>130.66</td>
-                        <td>0.00</td>
-                        <td>0.00</td>
-                        <td>Banka Virman</td>
-                        <td>GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620893</td>
-                        <td>25.07.2025</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <!-- Add more sample rows -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Status Bar -->
-    <div class="status-bar">
-        <div class="status-section">
-            <span>Toplam</span>
-            <span>430.136,218.20</span>
-        </div>
-        <div class="status-separator"></div>
-        <div class="status-section">
-            <span>Alacak Toplamı</span>
-            <span>430.171,600.83</span>
-        </div>
-        <div class="status-separator"></div>
-        <div class="status-section">
-            <span>Borç Toplamı</span>
-            <span>0.00</span>
-        </div>
-        <div class="status-separator"></div>
-        <div class="status-section">
-            <span>Bakiye</span>
-            <span>225,359.36</span>
-        </div>
-        <div class="status-separator"></div>
-        <div class="status-section">
-            <span>Ülkeli BUDGET</span>
-        </div>
-        <div style="margin-left: auto;">
-            <span>25.07.2025</span>
-        </div>
-    </div>
-
-    <!-- Modal Overlay -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal" id="posModal">
-            <div class="modal-header">
-                <span>POS Giriş Formu</span>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Tarih:</label>
-                    <input type="date" id="posTarih" value="2025-07-25" required>
+        <!-- Menu Bar -->
+        <div class="menu-bar">
+            <div class="menu-item" data-menu="muhasebe">Muhasebe</div>
+            <div class="menu-item" data-menu="gir-gider">Gir / Gider</div>
+            <div class="menu-item" data-menu="butce">Bütçe</div>
+            <div class="menu-item" data-menu="finans-odeme">Finans - Ödeme</div>
+            <div class="menu-item" data-menu="finans-tahsilat">Finans - Tahsilat</div>
+            <div class="menu-item active ocr-target finans-izle-text" 
+				 data-menu="finans-izle" 
+				 id="finansIzleMenu"
+				 data-ocr="Finans - İzle"
+				 data-ocr-variants="Finans-İzle|Finans – İzle|Finans — İzle|Finans İzle|FINANS - İZLE">
+                Finans - İzle
+                <div class="dropdown" id="finansIzleDropdown">
+                    <div class="dropdown-item ocr-target" data-action="banka-hesap-izleme">Banka hesap izleme</div>
+                    <div class="dropdown-item" data-action="banka-hareket-isleme">Banka Hareket İşleme</div>
+                    <div class="dropdown-item" data-action="kasa-izleme">Kasa İzleme</div>
+                    <div class="dropdown-item" data-action="cek-izleme">Çek İzleme</div>
                 </div>
+            </div>
+            <div class="menu-item" data-menu="satinalma">Satınalma</div>
+            <div class="menu-item" data-menu="satis">Satış</div>
+            <div class="menu-item" data-menu="stok">Stok</div>
+            <div class="menu-item" data-menu="uretim">Üretim</div>
+            <div class="menu-item" data-menu="personel">Personel</div>
+            <div class="menu-item" data-menu="sabit-kiymet">Sabit Kıymet</div>
+            <div class="menu-item" data-menu="hesap-tablolari">Hesap Tabloları</div>
+            <div class="menu-item" data-menu="diger">Diğer</div>
+        </div>
+
+        <!-- Ribbon -->
+        <div class="ribbon active" id="finansIzleRibbon">
+            <div class="ribbon-group">
+                <div class="ribbon-icon bank-icon ocr-target banka-text tooltip" 
+                     data-ocr="BANKA"
+					 data-ocr-variants="Banka|banka"
+					 data-action="open-banka-dialog" 
+                     data-tooltip="Banka İşlemleri"
+                     id="bankaRibbonIcon">
+                    🏦
+                </div>
+                <div class="ribbon-label">BANKA</div>
+            </div>
+            <div class="ribbon-group">
+                <div class="ribbon-icon tooltip" data-action="reports" data-tooltip="Raporlar">
+                    📊
+                </div>
+                <div class="ribbon-label">Raporlar</div>
+            </div>
+            <div class="ribbon-group">
+                <div class="ribbon-icon tooltip" data-action="export" data-tooltip="Çıktı Al">
+                    📤
+                </div>
+                <div class="ribbon-label">Çıktı Al</div>
+            </div>
+            <div class="ribbon-group">
+                <div class="ribbon-icon tooltip" data-action="help" data-tooltip="Yardım">
+                    ❓
+                </div>
+                <div class="ribbon-label">Yardım</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="left-panel">
+                <h3 style="font-size: 12px; margin-bottom: 15px; color: #333;">Arama Kriterleri</h3>
+                
                 <div class="form-group">
-                    <label>Seri:</label>
-                    <select id="posSeri" required>
-                        <option value="">Seçiniz...</option>
-                        <option value="POS">POS</option>
-                        <option value="BNK">BNK</option>
-                        <option value="NAK">NAK</option>
+                    <label class="form-label">Hesap No:</label>
+                    <input type="text" class="form-input ocr-target" id="hesapNoInput" readonly placeholder="Hesap seçin...">
+                    <button class="btn ocr-target tooltip" id="hesapSearchBtn" data-tooltip="Hesap Ara" style="margin-left: 5px; min-width: 30px;">...</button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Başlangıç:</label>
+                    <input type="date" class="form-input ocr-target" id="baslangicTarih">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Bitiş:</label>
+                    <input type="date" class="form-input ocr-target" id="bitisTarih">
+                </div>
+                
+                <div class="form-group">
+                    <button class="btn primary ocr-target yenile-text" id="yenileBtn">Yenile</button>
+                </div>
+                
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+                
+                <div class="form-group">
+                    <button class="btn ocr-target yeni-text" id="yeniBtn" style="width: 100%;">Yeni</button>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h4 style="font-size: 11px; color: #666; margin-bottom: 10px;">İşlem Geçmişi</h4>
+                    <div id="islemGecmisi" style="font-size: 10px; color: #888;">
+                        Henüz işlem yok
+                    </div>
+                </div>
+            </div>
+            
+            <div class="work-area" id="workArea">
+                <div style="text-align: center; color: #999; margin-top: 100px; padding: 20px;">
+                    <h3 style="margin-bottom: 10px;">Preston Banka Hesap İzleme</h3>
+                    <p>Hesap seçin ve tarihleri girerek "Yenile" butonuna basın</p>
+                    <p style="font-size: 10px; margin-top: 20px; color: #ccc;">
+                        Preston Xi v2.1.4 - © 2024 Preston Software Ltd.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banka Hesap İzleme Dialog -->
+    <div class="modal-overlay" id="bankaIzlemeModal">
+        <div class="modal banka-dialog">
+            <div class="modal-header">Banka hesap izleme</div>
+            <div class="modal-content">
+                <div class="banka-dropdown">
+                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">İşlem Türü Seçin:</label>
+                    <select id="bankaIslemTuru" class="ocr-target">
+                        <option value="">-- Seçin --</option>
+                        <option value="hesap-izleme">Banka hesap izleme</option>
+                        <option value="hareket-isleme">Banka hareket işleme</option>
+                        <option value="rapor-alma">Rapor alma</option>
                     </select>
                 </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="bankaIzlemeCancel">İptal</button>
+                <button class="btn primary ocr-target tamam-text" id="bankaIzlemeOk">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hesap Arama Modal -->
+    <div class="modal-overlay" id="hesapSearchModal">
+        <div class="modal search-dialog">
+            <div class="modal-header">Banka Hesap No Arama</div>
+            <div class="modal-content">
                 <div class="form-group">
-                    <label>Belge No:</label>
-                    <input type="text" id="posBelgeNo" placeholder="Otomatik" disabled>
+                    <label class="form-label">Hesap No:</label>
+                    <input type="text" class="form-input ocr-target" id="searchHesapNo" placeholder="Hesap numarası girin veya aşağıdan seçin">
+                </div>
+                <div class="search-results" id="searchResults">
+                    <!-- Dynamic content will be populated here -->
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="hesapSearchCancel">İptal</button>
+                <button class="btn primary ocr-target tamam-text" id="hesapSearchOk">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yeni İşlem Modal -->
+    <div class="modal-overlay" id="yeniIslemModal">
+        <div class="modal">
+            <div class="modal-header">Yeni İşlem Türü Seç</div>
+            <div class="modal-content">
+                <div class="dropdown-item ocr-target" data-action="havale-alma" style="padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;">
+                    <strong>Havale alma</strong> - Gelen havale işlemi
+                </div>
+                <div class="dropdown-item ocr-target" data-action="eft-alma" style="padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;">
+                    <strong>EFT alma</strong> - Gelen EFT işlemi
+                </div>
+                <div class="dropdown-item ocr-target" data-action="pos-tahsilat" style="padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;">
+                    <strong>POS tahsilat</strong> - Kredi kartı tahsilatı
+                </div>
+                <div class="dropdown-item ocr-target" data-action="nakit-tahsilat" style="padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;">
+                    <strong>Nakit tahsilat</strong> - Nakit tahsilat işlemi
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="yeniIslemCancel">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Havale Alma Form -->
+    <div class="modal-overlay" id="havaleAlmaModal">
+        <div class="modal" style="min-width: 600px;">
+            <div class="modal-header">Cari Hareketler - Havale alma</div>
+            <div class="modal-content">
+                <div class="form-group">
+                    <label class="form-label">Seri:</label>
+                    <input type="text" class="form-input ocr-target" id="havaleSerisi" value="HVAL-1" readonly>
+                    <button class="btn ocr-target yeni-text" id="yeniHavaleBtn" style="margin-left: 5px;">Yeni</button>
                 </div>
                 <div class="form-group">
-                    <label>Kart Hesap Kodu:</label>
-                    <input type="text" id="posKartHesap" placeholder="Hesap kodunu girin..." required>
+                    <label class="form-label">Belge No:</label>
+                    <input type="text" class="form-input ocr-target" id="havaleBelgeNo" readonly>
                 </div>
                 <div class="form-group">
-                    <label>Açıklama:</label>
-                    <input type="text" id="posAciklama" placeholder="İşlem açıklaması..." required>
+                    <label class="form-label">Belge Tarihi:</label>
+                    <input type="date" class="form-input ocr-target" id="havaleBelgeTarihi">
                 </div>
                 <div class="form-group">
-                    <label>Tutar:</label>
-                    <input type="number" id="posTutar" step="0.01" placeholder="0.00" required>
+                    <label class="form-label">Valör Tarihi:</label>
+                    <input type="date" class="form-input ocr-target" id="havaleValorTarihi">
                 </div>
                 <div class="form-group">
-                    <label>Döviz Cinsi:</label>
-                    <select id="posDoviz">
-                        <option value="TRY">TRY - Türk Lirası</option>
+                    <label class="form-label">Banka Kodu:</label>
+                    <input type="text" class="form-input ocr-target" id="havaleBanka" placeholder="Banka kodu girin">
+                    <button class="btn ocr-target" id="bankaSearchBtn" style="margin-left: 5px;">...</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cari Kodu:</label>
+                    <input type="text" class="form-input ocr-target" id="havaleCari" placeholder="Cari kodu girin">
+                    <button class="btn ocr-target" id="cariSearchBtn" style="margin-left: 5px;">...</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tutar:</label>
+                    <input type="number" class="form-input ocr-target" id="havaleTutar" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Açıklama:</label>
+                    <input type="text" class="form-input ocr-target" id="havaleAciklama" placeholder="İşlem açıklaması">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Döviz:</label>
+                    <select class="form-input ocr-target" id="havaleDoviz">
+                        <option value="TL">TL - Türk Lirası</option>
                         <option value="USD">USD - Amerikan Doları</option>
                         <option value="EUR">EUR - Euro</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Vade Tarihi:</label>
-                    <input type="date" id="posVadeTarihi">
-                </div>
             </div>
-            <div class="modal-buttons">
-                <button class="btn" onclick="closeModal()">İptal</button>
-                <button class="btn primary" onclick="savePosEntry()">Kaydet</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Context Menu -->
-    <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" onclick="editRow()">Düzenle</div>
-        <div class="context-menu-item" onclick="deleteRow()">Sil</div>
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item" onclick="copyRow()">Kopyala</div>
-        <div class="context-menu-item" onclick="pasteRow()">Yapıştır</div>
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item" onclick="insertRowAbove()">Üstte Satır Ekle</div>
-        <div class="context-menu-item" onclick="insertRowBelow()">Altta Satır Ekle</div>
-    </div>
-
-    <script>
-        // Global variables
-        let currentMenu = '';
-        let selectedRow = null;
-        let isLoading = false;
-        let excelData = [];
-        let currentRowIndex = 0;
-
-        // Application state
-        const appState = {
-            unsavedChanges: false,
-            editMode: false,
-            selectedCells: [],
-            clipboard: null,
-            filters: {},
-            sortColumn: null,
-            sortDirection: 'asc'
-        };
-
-        // Initialize application
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeEventListeners();
-            generateSampleData();
-            updateStatusBar();
-            
-            // Simulate realistic loading delay
-            setTimeout(() => {
-                console.log('Preston XI Simülatörü başlatıldı');
-            }, 500);
-        });
-
-        function initializeEventListeners() {
-            // Menu navigation
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    const menu = this.getAttribute('data-menu');
-                    selectMenu(menu);
-                });
-            });
-
-            // Grid interactions
-            const grid = document.getElementById('mainGrid');
-            grid.addEventListener('click', handleGridClick);
-            grid.addEventListener('contextmenu', handleGridRightClick);
-            grid.addEventListener('dblclick', handleGridDoubleClick);
-
-            // Window interactions
-            document.addEventListener('click', hideContextMenu);
-            document.addEventListener('keydown', handleKeyboardShortcuts);
-
-            // Modal interactions
-            document.getElementById('modalOverlay').addEventListener('click', function(e) {
-                if (e.target === this) closeModal();
-            });
-
-            // Form validation
-            setupFormValidation();
-        }
-
-        function selectMenu(menuType) {
-            // Remove active state from all menu items
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            // Add active state to selected menu
-            document.querySelector(`[data-menu="${menuType}"]`).classList.add('active');
-            
-            currentMenu = menuType;
-            updateRibbon(menuType);
-            
-            // Simulate loading delay
-            showLoading();
-            setTimeout(() => {
-                hideLoading();
-                console.log(`Menü değiştirildi: ${menuType}`);
-            }, 300 + Math.random() * 200);
-        }
-
-        function updateRibbon(menuType) {
-            const ribbon = document.getElementById('ribbon');
-            
-            // Clear current ribbon
-            ribbon.innerHTML = '';
-
-            let ribbonContent = '';
-
-            switch(menuType) {
-                case 'finans-tahsilat':
-                    ribbonContent = `
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Tahsilat İşlemleri</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Pos Girişi" onclick="openPosModal()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%232e7d32%22 viewBox=%220 0 24 24%22><path d=%22M20,8H4V6H20M20,18H4V12H20M22,4H2V20H22V4Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Banka Virmanı" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%231565c0%22 viewBox=%220 0 24 24%22><path d=%22M5,6H23V18H5V16H21V8H5M3,8V16H1V6H3M11,10V12H9V10M13,10V12H11V10M15,10V12H13V10%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Çek Girişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23f57c00%22 viewBox=%220 0 24 24%22><path d=%22M21,5H3C1.89,5 1,5.89 1,7V17C1,18.11 1.89,19 3,19H21C22.11,19 23,18.11 23,17V7C23,5.89 22.11,5 21,5M21,17H3V7H21V17Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Nakit Girişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23388e3c%22 viewBox=%220 0 24 24%22><path d=%22M7,15H9C9,16.08 10.37,17 12,17C13.63,17 15,16.08 15,15C15,13.9 13.96,13.5 11.76,12.97C9.64,12.44 7,11.78 7,9C7,7.21 8.47,5.69 10.5,5.18V3H13.5V5.18C15.53,5.69 17,7.21 17,9H15C15,7.92 13.63,7 12,7C10.37,7 9,7.92 9,9C9,10.1 10.04,10.5 12.24,11.03C14.36,11.56 17,12.22 17,15C17,16.79 15.53,18.31 13.5,18.82V21H10.5V18.82C8.47,18.31 7,16.79 7,15Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Raporlar</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Tahsilat Raporu" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Banka Ekstresi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Araçlar</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Excel Aktar" onclick="exportToExcel()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Excel İçe Aktar" onclick="importFromExcel()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Filtrele" onclick="showFilterDialog()" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                    `;
-                    break;
-
-                case 'muhasebe':
-                    ribbonContent = `
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Fiş İşlemleri</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Yevmiye Fişi" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Makbuz" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,22L4.5,20.5L6,22L7.5,20.5L9,22L10.5,20.5L12,22L13.5,20.5L15,22L16.5,20.5L18,22L19.5,20.5L21,22V2L19.5,3.5L18,2L16.5,3.5L15,2L13.5,3.5L12,2L10.5,3.5L9,2L7.5,3.5L6,2L4.5,3.5L3,2V22Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Senet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Hesap Planı</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Hesap Kartları" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Ana Hesaplar" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21C21,20.05 20.05,21 19,21H8A4,4 0 0,1 4,17V16H1A1,1 0 0,1 0,15V12A1,1 0 0,1 1,11H4V10A4,4 0 0,1 8,6H9V5.73C8.4,5.39 8,4.74 8,4A2,2 0 0,1 10,2H12M7,15.25L6.5,15.75L5.75,15L6.25,14.5L7,15.25M16.5,17.25L16,17.75L15.25,17L15.75,16.5L16.5,17.25Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                    `;
-                    break;
-
-                default:
-                    ribbonContent = `
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Genel</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Yeni Kayıt" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Kaydet" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Sil" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23d32f2f%22 viewBox=%220 0 24 24%22><path d=%22M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                        <div class="ribbon-group">
-                            <div class="ribbon-group-header">Araçlar</div>
-                            <div class="ribbon-icons">
-                                <div class="ribbon-icon" data-tooltip="Yazdır" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Excel" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23217346%22 viewBox=%220 0 24 24%22><path d=%22M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z%22/></svg>')"></div>
-                                <div class="ribbon-icon" data-tooltip="Filtre" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22%23333%22 viewBox=%220 0 24 24%22><path d=%22M3,2V2A1,1 0 0,1 4,3V6L10,12V22.5A0.5,0.5 0 0,0 10.5,23H13.5A0.5,0.5 0 0,0 14,22.5V12L20,6V3A1,1 0 0,1 21,2H3Z%22/></svg>')"></div>
-                            </div>
-                        </div>
-                    `;
-                    break;
-            }
-
-            ribbon.innerHTML = ribbonContent;
-        }
-
-        function handleGridClick(e) {
-            const row = e.target.closest('tr');
-            if (!row || !row.parentElement.tagName === 'TBODY') return;
-
-            // Remove previous selection
-            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
-            
-            // Select current row
-            row.classList.add('selected');
-            selectedRow = row;
-
-            // Make cell editable on click
-            if (e.target.tagName === 'TD') {
-                makeCellEditable(e.target);
-            }
-        }
-
-        function handleGridRightClick(e) {
-            e.preventDefault();
-            const row = e.target.closest('tr');
-            if (!row || row.parentElement.tagName !== 'TBODY') return;
-
-            // Select row
-            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
-            row.classList.add('selected');
-            selectedRow = row;
-
-            // Show context menu
-            showContextMenu(e.pageX, e.pageY);
-        }
-
-        function handleGridDoubleClick(e) {
-            const cell = e.target.closest('td');
-            if (cell) {
-                makeCellEditable(cell, true);
-            }
-        }
-
-        function makeCellEditable(cell, focus = false) {
-            if (cell.querySelector('input')) return; // Already editing
-
-            const originalValue = cell.textContent.trim();
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = originalValue;
-            input.style.width = '100%';
-            input.style.border = 'none';
-            input.style.background = 'transparent';
-            input.style.fontSize = '11px';
-            input.style.padding = '0';
-
-            cell.innerHTML = '';
-            cell.appendChild(input);
-
-            if (focus) {
-                input.focus();
-                input.select();
-            }
-
-            input.addEventListener('blur', function() {
-                finishCellEdit(cell, input.value, originalValue);
-            });
-
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    finishCellEdit(cell, input.value, originalValue);
-                } else if (e.key === 'Escape') {
-                    finishCellEdit(cell, originalValue, originalValue);
-                }
-            });
-        }
-
-        function finishCellEdit(cell, newValue, originalValue) {
-            cell.textContent = newValue;
-            
-            if (newValue !== originalValue) {
-                appState.unsavedChanges = true;
-                cell.style.backgroundColor = '#fff8dc'; // Highlight changed cells
-                setTimeout(() => {
-                    cell.style.backgroundColor = '';
-                }, 2000);
-                
-                console.log(`Hücre değiştirildi: ${originalValue} -> ${newValue}`);
-            }
-
-            updateStatusBar();
-        }
-
-        function showContextMenu(x, y) {
-            const contextMenu = document.getElementById('contextMenu');
-            contextMenu.style.display = 'block';
-            contextMenu.style.left = x + 'px';
-            contextMenu.style.top = y + 'px';
-
-            // Adjust position if menu goes off screen
-            const rect = contextMenu.getBoundingClientRect();
-            if (rect.right > window.innerWidth) {
-                contextMenu.style.left = (x - rect.width) + 'px';
-            }
-            if (rect.bottom > window.innerHeight) {
-                contextMenu.style.top = (y - rect.height) + 'px';
-            }
-        }
-
-        function hideContextMenu() {
-            document.getElementById('contextMenu').style.display = 'none';
-        }
-
-        function openPosModal() {
-            document.getElementById('modalOverlay').style.display = 'flex';
-            
-            // Auto-generate document number
-            const nextNo = document.querySelectorAll('#gridBody tr').length + 44650;
-            document.getElementById('posBelgeNo').value = nextNo;
-            
-            // Focus first input
-            setTimeout(() => {
-                document.getElementById('posTarih').focus();
-            }, 100);
-
-            console.log('POS giriş modalı açıldı');
-        }
-
-        function closeModal() {
-            document.getElementById('modalOverlay').style.display = 'none';
-            clearPosForm();
-        }
-
-        function clearPosForm() {
-            document.getElementById('posTarih').value = '2025-07-25';
-            document.getElementById('posSeri').value = '';
-            document.getElementById('posKartHesap').value = '';
-            document.getElementById('posAciklama').value = '';
-            document.getElementById('posTutar').value = '';
-            document.getElementById('posDoviz').value = 'TRY';
-            document.getElementById('posVadeTarihi').value = '';
-        }
-
-        function savePosEntry() {
-            // Validate form
-            const requiredFields = ['posTarih', 'posSeri', 'posKartHesap', 'posAciklama', 'posTutar'];
-            let isValid = true;
-
-            requiredFields.forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (!field.value.trim()) {
-                    field.style.borderColor = '#d32f2f';
-                    isValid = false;
-                } else {
-                    field.style.borderColor = '#ccc';
-                }
-            });
-
-            if (!isValid) {
-                alert('Lütfen tüm gerekli alanları doldurun!');
-                return;
-            }
-
-            // Simulate save delay
-            showLoading();
-
-            setTimeout(() => {
-                // Add new row to grid
-                addNewRowToGrid();
-                closeModal();
-                hideLoading();
-                updateStatusBar();
-                
-                console.log('POS girişi kaydedildi');
-                
-                // Show success message
-                showNotification('POS girişi başarıyla kaydedildi!', 'success');
-            }, 500 + Math.random() * 500);
-        }
-
-        function addNewRowToGrid() {
-            const formData = {
-                tarih: document.getElementById('posTarih').value,
-                seri: document.getElementById('posSeri').value,
-                no: document.getElementById('posBelgeNo').value,
-                kartHesap: document.getElementById('posKartHesap').value,
-                aciklama: document.getElementById('posAciklama').value,
-                tutar: parseFloat(document.getElementById('posTutar').value),
-                doviz: document.getElementById('posDoviz').value,
-                vadeTarihi: document.getElementById('posVadeTarihi').value
-            };
-
-            const tbody = document.getElementById('gridBody');
-            const newRow = document.createElement('tr');
-            
-            // Format date
-            const formattedDate = new Date(formData.tarih).toLocaleDateString('tr-TR');
-            const formattedVadeDate = formData.vadeTarihi ? new Date(formData.vadeTarihi).toLocaleDateString('tr-TR') : '';
-
-            newRow.innerHTML = `
-                <td>${formattedDate}</td>
-                <td>${formData.seri}</td>
-                <td>${formData.no}</td>
-                <td>POS</td>
-                <td>${formData.kartHesap}</td>
-                <td>${formData.aciklama}</td>
-                <td>${formData.tutar.toFixed(2)}</td>
-                <td>0.00</td>
-                <td>0.00</td>
-                <td>${formData.doviz}</td>
-                <td>POS İşlemi</td>
-                <td>${formattedDate}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>${formattedVadeDate}</td>
-                <td></td>
-            `;
-
-            // Insert at top
-            tbody.insertBefore(newRow, tbody.firstChild);
-            
-            // Highlight new row
-            newRow.style.backgroundColor = '#e8f5e8';
-            setTimeout(() => {
-                newRow.style.backgroundColor = '';
-            }, 3000);
-
-            appState.unsavedChanges = true;
-        }
-
-        function setupFormValidation() {
-            // Real-time validation
-            document.getElementById('posTutar').addEventListener('input', function(e) {
-                let value = e.target.value;
-                // Allow only numbers and decimal point
-                value = value.replace(/[^0-9.]/g, '');
-                e.target.value = value;
-            });
-
-            document.getElementById('posKartHesap').addEventListener('blur', function(e) {
-                // Simulate account validation
-                const accountCode = e.target.value.trim();
-                if (accountCode && accountCode.length >= 3) {
-                    // Simulate API call delay
-                    e.target.style.backgroundColor = '#fff3cd';
-                    setTimeout(() => {
-                        e.target.style.backgroundColor = '';
-                        console.log(`Hesap kodu doğrulandı: ${accountCode}`);
-                    }, 300);
-                }
-            });
-        }
-
-        function showLoading() {
-            isLoading = true;
-            document.body.classList.add('loading');
-        }
-
-        function hideLoading() {
-            isLoading = false;
-            document.body.classList.remove('loading');
-        }
-
-        function showNotification(message, type = 'info') {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
-                color: white;
-                padding: 12px 20px;
-                border-radius: 4px;
-                font-size: 12px;
-                z-index: 10000;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                transform: translateX(100%);
-                transition: transform 0.3s ease;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-
-            // Animate in
-            setTimeout(() => {
-                notification.style.transform = 'translateX(0)';
-            }, 10);
-
-            // Remove after delay
-            setTimeout(() => {
-                notification.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    document.body.removeChild(notification);
-                }, 300);
-            }, 3000);
-        }
-
-        function generateSampleData() {
-            // Add more realistic sample data
-            const sampleData = [
-                {
-                    tarih: '25.07.2025',
-                    seri: 'BNK-FT',
-                    no: '44633',
-                    ref: 'Banka',
-                    hesap: '6250744',
-                    aciklama: 'GARANTİ BANKASI 620091 İNS GARANTİ BANKASI 620091 İNS',
-                    borc: '562.12',
-                    alacak: '0.00',
-                    doviz: 'Banka Virman'
-                },
-                {
-                    tarih: '25.07.2025',
-                    seri: 'BNK-FT',
-                    no: '44632',
-                    ref: 'Banka',
-                    hesap: '6250744',
-                    aciklama: 'GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ',
-                    borc: '1.301.96',
-                    alacak: '0.00',
-                    doviz: 'Banka Virman'
-                },
-                {
-                    tarih: '25.07.2025',
-                    seri: 'BNK-FT',
-                    no: '44631',
-                    ref: 'Banka',
-                    hesap: '6250893',
-                    aciklama: 'GARANTİ BANKASI 620091 HESAPLARA MÜSLİOĞLU ŞÜBESİ URDU HAF',
-                    borc: '130.66',
-                    alacak: '0.00',
-                    doviz: 'Banka Virman'
-                }
-            ];
-
-            // Add sample data to grid would be here if needed
-            console.log('Örnek veriler yüklendi');
-        }
-
-        function updateStatusBar() {
-            // Calculate totals from grid
-            const rows = document.querySelectorAll('#gridBody tr');
-            let totalBorc = 0;
-            let totalAlacak = 0;
-
-            rows.forEach(row => {
-                const cells = row.cells;
-                if (cells.length > 6) {
-                    const borc = parseFloat(cells[6].textContent.replace(/[^\d.-]/g, '')) || 0;
-                    const alacak = parseFloat(cells[7].textContent.replace(/[^\d.-]/g, '')) || 0;
-                    totalBorc += borc;
-                    totalAlacak += alacak;
-                }
-            });
-
-            // Update status bar with real calculations
-            const statusElements = document.querySelectorAll('.status-section span');
-            if (statusElements.length >= 6) {
-                statusElements[1].textContent = totalBorc.toLocaleString('tr-TR', {minimumFractionDigits: 2});
-                statusElements[3].textContent = totalAlacak.toLocaleString('tr-TR', {minimumFractionDigits: 2});
-                statusElements[5].textContent = (totalAlacak - totalBorc).toLocaleString('tr-TR', {minimumFractionDigits: 2});
-            }
-        }
-
-        function handleKeyboardShortcuts(e) {
-            // Common shortcuts
-            if (e.ctrlKey) {
-                switch(e.key.toLowerCase()) {
-                    case 's':
-                        e.preventDefault();
-                        saveDocument();
-                        break;
-                    case 'n':
-                        e.preventDefault();
-                        if (currentMenu === 'finans-tahsilat') {
-                            openPosModal();
-                        }
-                        break;
-                    case 'f':
-                        e.preventDefault();
-                        showFilterDialog();
-                        break;
-                    case 'p':
-                        e.preventDefault();
-                        printDocument();
-                        break;
-                }
-            }
-
-            // Escape key
-            if (e.key === 'Escape') {
-                closeModal();
-                hideContextMenu();
-            }
-
-            // Delete key
-            if (e.key === 'Delete' && selectedRow) {
-                deleteRow();
-            }
-
-            // Enter key in modals
-            if (e.key === 'Enter' && document.getElementById('modalOverlay').style.display === 'flex') {
-                e.preventDefault();
-                savePosEntry();
-            }
-        }
-
-        // Context menu functions
-        function editRow() {
-            if (!selectedRow) return;
-            
-            // Make all cells in row editable
-            const cells = selectedRow.querySelectorAll('td');
-            cells.forEach((cell, index) => {
-                if (index > 0 && index < cells.length - 1) { // Skip first and last columns
-                    makeCellEditable(cell, index === 1);
-                }
-            });
-            
-            hideContextMenu();
-            console.log('Satır düzenleme moduna alındı');
-        }
-
-        function deleteRow() {
-            if (!selectedRow) return;
-            
-            if (confirm('Bu satırı silmek istediğinizden emin misiniz?')) {
-                selectedRow.style.backgroundColor = '#ffebee';
-                setTimeout(() => {
-                    selectedRow.remove();
-                    selectedRow = null;
-                    appState.unsavedChanges = true;
-                    updateStatusBar();
-                    console.log('Satır silindi');
-                    showNotification('Satır başarıyla silindi', 'success');
-                }, 200);
-            }
-            
-            hideContextMenu();
-        }
-
-        function copyRow() {
-            if (!selectedRow) return;
-            
-            const cells = selectedRow.querySelectorAll('td');
-            appState.clipboard = Array.from(cells).map(cell => cell.textContent.trim());
-            
-            showNotification('Satır kopyalandı', 'info');
-            hideContextMenu();
-            console.log('Satır panoya kopyalandı');
-        }
-
-        function pasteRow() {
-            if (!appState.clipboard || !selectedRow) return;
-            
-            const cells = selectedRow.querySelectorAll('td');
-            appState.clipboard.forEach((value, index) => {
-                if (index < cells.length) {
-                    cells[index].textContent = value;
-                    cells[index].style.backgroundColor = '#fff8dc';
-                    setTimeout(() => {
-                        cells[index].style.backgroundColor = '';
-                    }, 2000);
-                }
-            });
-            
-            appState.unsavedChanges = true;
-            updateStatusBar();
-            showNotification('Satır yapıştırıldı', 'success');
-            hideContextMenu();
-            console.log('Satır yapıştırıldı');
-        }
-
-        function insertRowAbove() {
-            if (!selectedRow) return;
-            
-            const newRow = createEmptyRow();
-            selectedRow.parentNode.insertBefore(newRow, selectedRow);
-            
-            // Select new row
-            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
-            newRow.classList.add('selected');
-            selectedRow = newRow;
-            
-            appState.unsavedChanges = true;
-            hideContextMenu();
-            console.log('Üstte yeni satır eklendi');
-        }
-
-        function insertRowBelow() {
-            if (!selectedRow) return;
-            
-            const newRow = createEmptyRow();
-            selectedRow.parentNode.insertBefore(newRow, selectedRow.nextSibling);
-            
-            // Select new row
-            document.querySelectorAll('tr.selected').forEach(r => r.classList.remove('selected'));
-            newRow.classList.add('selected');
-            selectedRow = newRow;
-            
-            appState.unsavedChanges = true;
-            hideContextMenu();
-            console.log('Altta yeni satır eklendi');
-        }
-
-        function createEmptyRow() {
-            const row = document.createElement('tr');
-            const today = new Date().toLocaleDateString('tr-TR');
-            
-            row.innerHTML = `
-                <td>${today}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>0.00</td>
-                <td>0.00</td>
-                <td>0.00</td>
-                <td></td>
-                <td></td>
-                <td>${today}</td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            `;
-            
-            row.style.backgroundColor = '#e8f5e8';
-            setTimeout(() => {
-                row.style.backgroundColor = '';
-            }, 3000);
-            
-            return row;
-        }
-
-        // Additional utility functions
-        function saveDocument() {
-            if (!appState.unsavedChanges) {
-                showNotification('Kaydedilecek değişiklik yok', 'info');
-                return;
-            }
-            
-            showLoading();
-            
-            setTimeout(() => {
-                appState.unsavedChanges = false;
-                hideLoading();
-                showNotification('Belge başarıyla kaydedildi', 'success');
-                console.log('Belge kaydedildi');
-            }, 800 + Math.random() * 400);
-        }
-
-        function exportToExcel() {
-            showLoading();
-            
-            setTimeout(() => {
-                hideLoading();
-                showNotification('Excel dosyası dışa aktarıldı', 'success');
-                console.log('Excel export işlemi tamamlandı');
-            }, 1000 + Math.random() * 500);
-        }
-
-        function importFromExcel() {
-            // Simulate file dialog
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xlsx,.xls';
-            
-            input.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    showLoading();
-                    
-                    setTimeout(() => {
-                        hideLoading();
-                        showNotification(`Excel dosyası içe aktarıldı: ${file.name}`, 'success');
-                        console.log(`Excel import: ${file.name}`);
-                    }, 1500 + Math.random() * 1000);
-                }
-            });
-            
-            input.click();
-        }
-
-        function showFilterDialog() {
-            // This would show a filter dialog in real implementation
-            showNotification('Filtre özelliği yakında eklenecek', 'info');
-            console.log('Filtre diyalogu açılması istendi');
-        }
-
-        function printDocument() {
-            showLoading();
-            
-            setTimeout(() => {
-                hideLoading();
-                showNotification('Yazdırma işlemi başlatıldı', 'success');
-                console.log('Yazdırma işlemi başlatıldı');
-            }, 500);
-        }
-
-        // Window behavior simulation
-        window.addEventListener('beforeunload', function(e) {
-            if (appState.unsavedChanges) {
-                e.preventDefault();
-                e.returnValue = 'Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?';
-                return e.returnValue;
-            }
-        });
-
-        // Simulate random system events
-        function simulateSystemEvents() {
-            setInterval(() => {
-                // Simulate auto-save
-                if (appState.unsavedChanges && Math.random() > 0.7) {
-                    console.log('Otomatik kayıt gerçekleştirildi');
-                }
-                
-                // Simulate network status changes
-                if (Math.random() > 0.95) {
-                    console.log('Ağ bağlantısı kontrol ediliyor...');
-                }
-            }, 30000);
-        }
-
-        // Start system events simulation
-        setTimeout(simulateSystemEvents, 5000);
-
-        // Performance monitoring
-        let performanceStartTime = performance.now();
-        
-        window.addEventListener('load', function() {
-            const loadTime = performance.now() - performanceStartTime;
-            console.log(`Preston XI simülatörü ${Math.round(loadTime)}ms'de yüklendi`);
-        });
-
-        // Console commands for RPA testing
-        window.prestonRPA = {
-            selectMenu: selectMenu,
-            openPosModal: openPosModal,
-            fillPosForm: function(data) {
-                Object.keys(data).forEach(key => {
-                    const element = document.getElementById('pos' + key.charAt(0).toUpperCase() + key.slice(1));
-                    if (element) {
-                        element.value = data[key];
-                    }
-                });
-            },
-            savePosEntry: savePosEntry,
-            getGridData: function() {
-                const rows = document.querySelectorAll('#gridBody tr');
-                return Array.from(rows).map(row => {
-                    return Array.from(row.cells).map(cell => cell.textContent.trim());
-                });
-            },
-            simulateExcelData: function(data) {
-                excelData = data;
-                console.log('Excel verileri simüle edildi:', data.length, 'satır');
-            },
-            processExcelRow: function(rowIndex) {
-                if (rowIndex < excelData.length) {
-                    const rowData = excelData[rowIndex];
-                    openPosModal();
-                    
-                    setTimeout(() => {
-                        // Fill form with Excel data
-                        if (rowData.tarih) document.getElementById('posTarih').value = rowData.tarih;
-                        if (rowData.seri) document.getElementById('posSeri').value = rowData.seri;
-                        if (rowData.hesap) document.getElementById('posKartHesap').value = rowData.hesap;
-                        if (rowData.aciklama) document.getElementById('posAciklama').value = rowData.aciklama;
-                        if (rowData.tutar) document.getElementById('posTutar').value = rowData.tutar;
-                        
-                        console.log(`Excel satır ${rowIndex + 1} forma dolduruldu`);
-                    }, 100);
-                }
-            }
-        };
-
-        console.log('Preston XI RPA Simülatörü hazır!');
-        console.log('RPA test komutları için window.prestonRPA nesnesini kullanın');
-        console.log('Örnek: prestonRPA.selectMenu("finans-tahsilat")');
-    </script>
-</body>
-</html>
