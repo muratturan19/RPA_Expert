@@ -91,7 +91,7 @@ class PrestonRPA:
         logger.info("Starting automation for %d date groups", len(excel_data))
         focus_preston_window(simulator_path)
         if not self._wait_for_main_menu():
-            logger.error("Preston simulator not ready; aborting automation")
+            logger.error("Preston görünür değil veya sekme aktif değil; otomasyon durduruldu")
             return
         for entry in excel_data:
             if not self.running:
@@ -103,14 +103,57 @@ class PrestonRPA:
         self.running = False
 
     def _wait_for_main_menu(self, timeout: float = 30) -> bool:
-        """Wait until the main menu is visible on screen."""
+        """Preston sekmesi görünür/aktif ve içerik çizilmiş olmadan True dönmez."""
+        import uiautomation as auto
+        from PIL import ImageGrab
+
+        FINANS = UI_TEXTS["finans_izle"]
+        CENTER = ["Preston Banka Hesap İzleme", "Banka Hesap İzleme"]
+
         end_time = time.time() + timeout
+        ok_streak = 0
+
+        def _chrome():
+            return auto.WindowControl(searchDepth=1, NameRe=r".*Chrome")
+
         while time.time() < end_time:
-            for variant in UI_TEXTS["finans_izle"]:
-                if self.ocr.find_text_on_screen(variant):
+            ch = _chrome()
+            if not ch.Exists(0.3):
+                time.sleep(0.3)
+                continue
+
+            ch.SetActive()
+            tab = ch.TabItemControl(NameRe=r"(Preston\s+X[iI]\b.*Kurumsal.*|Preston\.html)")
+            if tab.Exists(0.2):
+                try:
+                    tab.Select()
+                except Exception:
+                    pass
+
+            l, t, r, b = ch.BoundingRectangle
+            menu_roi = (l + 8, t + 130, r - 8, t + 210)
+            center_roi = (l + 200, t + 260, r - 200, t + 420)
+
+            found = (
+                self.ocr.find_text_on_screen(FINANS, region=menu_roi, normalize=True)
+                or self.ocr.find_text_on_screen(CENTER, region=center_roi, normalize=True)
+            )
+
+            if found:
+                ok_streak += 1
+                if ok_streak >= 2:
                     return True
-            time.sleep(1)
-        logger.error("Text '%s' not found on screen", UI_TEXTS["finans_izle"])
+            else:
+                ok_streak = 0
+
+            time.sleep(0.25)
+
+        try:
+            ImageGrab.grab(bbox=menu_roi).save("debug_menu_roi.png")
+            ImageGrab.grab(bbox=center_roi).save("debug_center_roi.png")
+        except Exception:
+            pass
+        logger.error("Preston ready check failed; ROI screenshots saved.")
         return False
 
     # The following methods are placeholders demonstrating the sequence.
