@@ -5,7 +5,9 @@ from __future__ import annotations
 import time
 from typing import List, Dict
 
-import webbrowser
+import subprocess
+import pyautogui
+import pygetwindow as gw
 
 from .config import CLICK_DELAY, FORM_FILL_DELAY, UI_TEXTS, BANK_CODES, CARI_CODES
 from .logger import get_logger
@@ -13,6 +15,33 @@ from .ocr_engine import OCREngine
 from .image_matcher import ImageMatcher
 
 logger = get_logger(__name__)
+
+
+def focus_preston_window(simulator_path: str) -> None:
+    """Bring Preston window to foreground or open it if missing."""
+    preston_windows = gw.getWindowsWithTitle("Preston")
+    if preston_windows:
+        preston_window = preston_windows[0]
+        preston_window.activate()
+        preston_window.maximize()
+        pyautogui.click(preston_window.center)
+    else:
+        subprocess.run(
+            [
+                "chrome",
+                "--new-window",
+                "--start-maximized",
+                f"file:///{simulator_path}",
+            ]
+        )
+        time.sleep(2)
+        preston_windows = gw.getWindowsWithTitle("Preston")
+        if preston_windows:
+            preston_window = preston_windows[0]
+            preston_window.activate()
+            preston_window.maximize()
+            pyautogui.click(preston_window.center)
+    time.sleep(1)
 
 
 class PrestonRPA:
@@ -24,7 +53,7 @@ class PrestonRPA:
     def start_automation(self, excel_data: List[Dict[str, object]], simulator_path: str):
         """Main automation workflow."""
         logger.info("Starting automation for %d date groups", len(excel_data))
-        webbrowser.open(simulator_path)
+        focus_preston_window(simulator_path)
         time.sleep(2)
         for entry in excel_data:
             if not self.running:
