@@ -9,9 +9,16 @@ from typing import List, Dict
 
 import streamlit as st
 
-from .excel_processor import process_excel_file
-from .preston_automation import PrestonRPA
-from .logger import get_logger
+if __package__ in (None, ""):
+    import sys
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    from preston_rpa.excel_processor import process_excel_file
+    from preston_rpa.preston_automation import PrestonRPA
+    from preston_rpa.logger import get_logger
+else:
+    from .excel_processor import process_excel_file
+    from .preston_automation import PrestonRPA
+    from .logger import get_logger
 
 logger = get_logger(__name__)
 
