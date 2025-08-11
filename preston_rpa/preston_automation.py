@@ -68,11 +68,17 @@ class PrestonRPA:
     def execute_workflow(self, data_entry: Dict[str, object]):
         """Execute simplified Preston workflow for a single date group."""
         try:
-            logger.info("Processing date %s with %d transactions", data_entry["tarih"], data_entry["islem_sayisi"])
+            logger.info(
+                "Processing date %s with %d transactions", data_entry["tarih"], data_entry["islem_sayisi"]
+            )
             # Navigation Phase
-            self.ocr.click_text(UI_TEXTS["finans_menu"])
+            menu_width, _ = pyautogui.size()
+            menu_region = (0, 0, menu_width, 120)
+            if not self.ocr.click_text(UI_TEXTS["finans_izle"], region=menu_region):
+                raise AssertionError("'Finans - İzle' menu not found")
             time.sleep(CLICK_DELAY)
-            self.ocr.click_text(UI_TEXTS["izle_tab"])
+            if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
+                raise AssertionError("'Finans - İzle' dropdown did not open")
             time.sleep(CLICK_DELAY)
             # Placeholder for more navigation steps...
 
