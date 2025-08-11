@@ -92,6 +92,84 @@ class OCREngine:
         text = re.sub(r"\s+", " ", text)
         return text.strip().casefold()
 
+    def find_word_pair(
+        self,
+        window_rect: Tuple[int, int, int, int],
+        left_word: str = "finans",
+        right_word: str = "izle",
+        max_gap: int = 220,
+        conf_min: float = 60,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """Locate two words on the same line within a given pixel gap."""
+        img = self._screenshot(region=window_rect)
+        if img is None:
+            return None
+        data = pytesseract.image_to_data(
+            img,
+            lang=self.lang,
+            config="--psm 6",
+            output_type=pytesseract.Output.DICT,
+        )
+        lines: dict[int, list[dict[str, int | str]]] = {}
+        for i, text in enumerate(data["text"]):
+            if not text.strip():
+                continue
+            if float(data["conf"][i]) < conf_min:
+                continue
+            line = lines.setdefault(data["line_num"][i], [])
+            line.append(
+                {
+                    "text": self._normalize(text),
+                    "left": data["left"][i],
+                    "top": data["top"][i],
+                    "right": data["left"][i] + data["width"][i],
+                    "bottom": data["top"][i] + data["height"][i],
+                }
+            )
+        target_left = self._normalize(left_word)
+        target_right = self._normalize(right_word)
+        for tokens in lines.values():
+            tokens.sort(key=lambda t: t["left"])
+            for idx, tok in enumerate(tokens):
+                if tok["text"] != target_left:
+                    continue
+                for cand in tokens[idx + 1 :]:
+                    if cand["left"] - tok["left"] > max_gap:
+                        break
+                    if cand["text"] == target_right:
+                        x = min(tok["left"], cand["left"]) + window_rect[0]
+                        y = min(tok["top"], cand["top"]) + window_rect[1]
+                        w = max(tok["right"], cand["right"]) - min(tok["left"], cand["left"])
+                        h = max(tok["bottom"], cand["bottom"]) - min(tok["top"], cand["top"])
+                        return x, y, w, h
+        if self.debug:
+            self._save_debug_image(img, f"pair_not_found_{left_word}_{right_word}")
+        return None
+
+    def click_word_pair(
+        self,
+        window_rect: Tuple[int, int, int, int],
+        left_word: str = "finans",
+        right_word: str = "izle",
+        max_gap: int = 220,
+        conf_min: float = 60,
+    ) -> bool:
+        """Find a word pair and click the centre of their combined bounding box."""
+        bbox = self.find_word_pair(
+            window_rect,
+            left_word=left_word,
+            right_word=right_word,
+            max_gap=max_gap,
+            conf_min=conf_min,
+        )
+        if bbox:
+            x, y, w, h = bbox
+            pyautogui.click(x + w // 2, y + h // 2)
+            time.sleep(0.1)
+            return True
+        logger.error("Word pair '%s' and '%s' not found on screen", left_word, right_word)
+        return False
+
     def find_text_on_screen(
         self,
         text: Iterable[str] | str,
