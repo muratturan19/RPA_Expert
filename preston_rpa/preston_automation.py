@@ -18,29 +18,50 @@ logger = get_logger(__name__)
 
 
 def focus_preston_window(simulator_path: str) -> None:
-    """Bring Preston window to foreground or open it if missing."""
-    preston_windows = gw.getWindowsWithTitle("Preston")
+    """Bring Preston simulator tab to the foreground or open it if missing."""
+    target_title = "Preston XI - Kurumsal Kaynak Yönetim Sistemi"
+
+    # Try to locate a window where the desired tab is already active
+    preston_windows = gw.getWindowsWithTitle(target_title)
     if preston_windows:
         preston_window = preston_windows[0]
         preston_window.activate()
         preston_window.maximize()
         pyautogui.click(preston_window.center)
-    else:
-        subprocess.run(
-            [
-                "chrome",
-                "--new-window",
-                "--start-maximized",
-                f"file:///{simulator_path}",
-            ]
-        )
-        time.sleep(2)
-        preston_windows = gw.getWindowsWithTitle("Preston")
-        if preston_windows:
-            preston_window = preston_windows[0]
-            preston_window.activate()
-            preston_window.maximize()
-            pyautogui.click(preston_window.center)
+        time.sleep(1)
+        return
+
+    # If the tab exists but is not active, cycle through Chrome tabs
+    chrome_windows = gw.getWindowsWithTitle("Chrome")
+    if chrome_windows:
+        chrome_window = chrome_windows[0]
+        chrome_window.activate()
+        chrome_window.maximize()
+        for _ in range(10):
+            active = gw.getActiveWindow()
+            if active and target_title in active.title:
+                pyautogui.click(active.center)
+                time.sleep(1)
+                return
+            pyautogui.hotkey("ctrl", "tab")
+            time.sleep(0.5)
+
+    # Open the simulator if the tab could not be found
+    subprocess.run(
+        [
+            "chrome",
+            "--new-window",
+            "--start-maximized",
+            f"file:///{simulator_path}",
+        ]
+    )
+    time.sleep(2)
+    preston_windows = gw.getWindowsWithTitle(target_title)
+    if preston_windows:
+        preston_window = preston_windows[0]
+        preston_window.activate()
+        preston_window.maximize()
+        pyautogui.click(preston_window.center)
     time.sleep(1)
 
 
