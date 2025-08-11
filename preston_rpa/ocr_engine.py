@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import Optional, Tuple
 from pathlib import Path
 
 import pytesseract
-from PIL import ImageGrab
 import pyautogui
+import pygetwindow as gw
 
 from .config import OCR_CONFIDENCE, OCR_LANGUAGE, OCR_TESSERACT_CONFIG
 from .logger import get_logger
@@ -32,7 +33,19 @@ class OCREngine:
 
     def _screenshot(self, region=None):
         try:
-            img = ImageGrab.grab(bbox=region)
+            windows = gw.getWindowsWithTitle("Preston")
+            if windows:
+                windows[0].activate()
+                time.sleep(2)
+            img = pyautogui.screenshot(region=region)
+            if self.debug:
+                debug_dir = Path("debug")
+                debug_dir.mkdir(exist_ok=True)
+                filename = debug_dir / f"debug_{datetime.now().strftime('%H%M%S')}.png"
+                img.save(filename)
+                print("Screenshot saved, looking for text...")
+                text = pytesseract.image_to_string(img, lang="tur")
+                print(f"ALL OCR TEXT FOUND: {text}")
             return img
         except Exception as exc:
             logger.error("Screenshot failed: %s", exc)
