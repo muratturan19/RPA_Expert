@@ -90,8 +90,8 @@ class PrestonRPA:
         """Main automation workflow."""
         logger.info("Starting automation for %d date groups", len(excel_data))
         focus_preston_window(simulator_path)
-        if not self._wait_for_main_menu():
-            logger.error("Preston görünür değil veya sekme aktif değil; otomasyon durduruldu")
+        if not self._wait_for_preston_ready():
+            logger.error("Preston not ready")
             return
         for entry in excel_data:
             if not self.running:
@@ -102,12 +102,11 @@ class PrestonRPA:
     def stop(self):
         self.running = False
 
-    def _wait_for_main_menu(self, timeout: float = 30) -> bool:
+    def _wait_for_preston_ready(self, timeout: float = 15) -> bool:
         """Preston sekmesi görünür/aktif ve içerik çizilmiş olmadan True dönmez."""
         import uiautomation as auto
         from PIL import ImageGrab
 
-        FINANS = UI_TEXTS["finans_izle"]
         CENTER = ["Preston Banka Hesap İzleme", "Banka Hesap İzleme"]
 
         end_time = time.time() + timeout
@@ -133,10 +132,11 @@ class PrestonRPA:
             l, t, r, b = ch.BoundingRectangle
             menu_roi = (l + 8, t + 130, r - 8, t + 210)
             center_roi = (l + 200, t + 260, r - 200, t + 420)
+            window_rect = (l, t, r - l, b - t)
 
-            found = (
-                self.ocr.find_text_on_screen(FINANS, region=menu_roi, normalize=True)
-                or self.ocr.find_text_on_screen(CENTER, region=center_roi, normalize=True)
+            found_pair = self.ocr.find_word_pair(window_rect, "finans", "izle")
+            found = found_pair or self.ocr.find_text_on_screen(
+                CENTER, region=center_roi, normalize=True
             )
 
             if found:
@@ -164,9 +164,11 @@ class PrestonRPA:
                 "Processing date %s with %d transactions", data_entry["tarih"], data_entry["islem_sayisi"]
             )
             # Navigation Phase
-            menu_width, _ = pyautogui.size()
-            menu_region = (0, 0, menu_width, 120)
-            if not self.ocr.click_text(UI_TEXTS["finans_izle"], region=menu_region):
+            window = gw.getActiveWindow()
+            if not window:
+                raise AssertionError("Preston window not active")
+            window_rect = (window.left, window.top, window.width, window.height)
+            if not self.ocr.click_word_pair(window_rect, "finans", "izle"):
                 raise AssertionError("'Finans - İzle' menu not found")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
