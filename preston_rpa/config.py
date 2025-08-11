@@ -8,6 +8,8 @@ OCR_CONFIDENCE = 0.8
 OCR_LANGUAGE = "tur"
 # Tesseract configuration string (single line mode for menu bar)
 OCR_TESSERACT_CONFIG = "--psm 7"
+# Minimum similarity ratio (0-1) for fuzzy text matching in OCR
+OCR_FUZZY_THRESHOLD = 0.8
 
 # Timing Settings
 CLICK_DELAY = 1.0

@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from typing import Optional, Tuple, Iterable
 from pathlib import Path
+from difflib import SequenceMatcher
 
 import numpy as np
 import pytesseract
@@ -15,7 +16,12 @@ import pygetwindow as gw
 import cv2
 from PIL import Image
 
-from .config import OCR_CONFIDENCE, OCR_LANGUAGE, OCR_TESSERACT_CONFIG
+from .config import (
+    OCR_CONFIDENCE,
+    OCR_LANGUAGE,
+    OCR_TESSERACT_CONFIG,
+    OCR_FUZZY_THRESHOLD,
+)
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -137,16 +143,20 @@ class OCREngine:
             line["bottom"].append(top + height)
         for line in lines.values():
             line_text = " ".join(line["words"])
-            line_norm = self._normalize(line_text) if normalize else line_text.casefold()
-            if line_norm in targets:
-                x = min(line["left"])
-                y = min(line["top"])
-                w = max(line["right"]) - x
-                h = max(line["bottom"]) - y
-                if region:
-                    x += region[0]
-                    y += region[1]
-                return x, y, w, h
+            line_norm = (
+                self._normalize(line_text) if normalize else line_text.casefold()
+            )
+            for target in targets:
+                ratio = SequenceMatcher(None, line_norm, target).ratio()
+                if target in line_norm or ratio >= OCR_FUZZY_THRESHOLD:
+                    x = min(line["left"])
+                    y = min(line["top"])
+                    w = max(line["right"]) - x
+                    h = max(line["bottom"]) - y
+                    if region:
+                        x += region[0]
+                        y += region[1]
+                    return x, y, w, h
         if self.debug and variants:
             miss = self._normalize(variants[0]) if normalize else variants[0].casefold()
             self._save_debug_image(img, f"not_found_{miss}")
