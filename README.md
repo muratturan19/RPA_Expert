@@ -1,49 +1,34 @@
-# RPA Expert Automation
+# Preston RPA System
 
-Bu proje, Preston simülatöründe (RPA_Expert.html) POS girişi işlemlerini otomatikleştiren bir örnek RPA uygulamasıdır. Python ve Selenium kullanılarak Excel dosyasından alınan verilerle form doldurma ve kaydetme işlemleri gerçekleştirilir.
+Bu proje, Preston muhasebe yazılımı için POS hareketlerinin otomatik olarak kaydedilmesi amacıyla geliştirilmiş örnek bir RPA sistemidir. Sistem, Excel dosyalarındaki POS hareketlerini okuyarak tarihe göre gruplayan bir arka plan işlemi ve Streamlit tabanlı bir kullanıcı arayüzü içerir.
+
+## Özellikler
+- Excel dosyalarından POSH ile başlayan ve 5+ rakamla biten açıklamaları filtreleme
+- Tarihe göre gruplama ve toplam tutar hesaplama
+- Pytesseract tabanlı OCR ile ekran üzerindeki metinleri bulma
+- OpenCV ile ikon eşleştirme
+- Streamlit ile gerçek zamanlı ilerleme ve log görüntüleme
 
 ## Kurulum
-
 1. Python 3.10+ kurulu olmalıdır.
-2. Google Chrome tarayıcısı gereklidir.
-3. Bağımlılıkları yükleyin:
-
+2. Bağımlılıkları yükleyin:
 ```bash
 pip install -r requirements.txt
 ```
-
-> Not: `webdriver-manager` modülü uygun ChromeDriver sürümünü otomatik indirir.
+3. Windows ortamında tesseract ve gerekli ekran erişim izinleri hazır olmalıdır.
 
 ## Kullanım
-
-1. POS verilerini `pos_data.xlsx` adlı bir Excel dosyasına girin. Dosya aşağıdaki sütunları içermelidir:
-   - `Tarih` (YYYY-MM-DD)
-   - `Firma`
-   - `Tutar`
-   - `Açıklama`
-   - `Döviz` (opsiyonel)
-   - `Vade Tarihi` (opsiyonel)
-2. Otomasyonu çalıştırın:
-
 ```bash
-python rpa_pos_entry.py --excel pos_data.xlsx
+streamlit run preston_rpa/main.py
 ```
+Uygulama açıldığında Excel dosyanızı yükleyip `Start RPA` butonuna basın. İşlem ilerlemesi ve loglar ekranda görüntülenecektir.
 
-Windows kullanıcıları için, komut penceresinden `run.bat` dosyasını çalıştırmak yeterlidir.
-
-## İş Akışı
-
-1. Excel dosyasından satır satır POS verisi okunur.
-2. Selenium ile yerel `RPA_Expert.html` dosyası açılır.
-3. Menüde **Finans > Tahsilat > POS Girişi** yolunu izleyerek form açılır.
-4. Form alanları doldurulur ve kaydedilir.
-5. Her satır için süreç tekrar edilir.
-
-## Loglama ve Hata Yönetimi
-
-- Tüm işlemler `rpa.log` dosyasına kaydedilir.
-- Herhangi bir hata meydana geldiğinde log dosyasına detayları yazılır ve işlem sıradaki kayıtla devam eder.
+## Modüller
+- `excel_processor.py`: Excel dosyasını okuyup işlem grupları oluşturur.
+- `ocr_engine.py`: OCR işlemlerini gerçekleştirir.
+- `image_matcher.py`: İkon tespiti için OpenCV kullanır.
+- `preston_automation.py`: Preston iş akışının temel adımlarını içerir.
+- `main.py`: Streamlit kullanıcı arayüzü.
 
 ## Lisans
-
-Bu proje eğitim amaçlı örnek olarak hazırlanmıştır.
+Bu proje eğitim amaçlı hazırlanmıştır.
