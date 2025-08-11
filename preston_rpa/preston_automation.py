@@ -90,7 +90,9 @@ class PrestonRPA:
         """Main automation workflow."""
         logger.info("Starting automation for %d date groups", len(excel_data))
         focus_preston_window(simulator_path)
-        time.sleep(2)
+        if not self._wait_for_main_menu():
+            logger.error("Preston simulator not ready; aborting automation")
+            return
         for entry in excel_data:
             if not self.running:
                 break
@@ -99,6 +101,17 @@ class PrestonRPA:
 
     def stop(self):
         self.running = False
+
+    def _wait_for_main_menu(self, timeout: float = 30) -> bool:
+        """Wait until the main menu is visible on screen."""
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            for variant in UI_TEXTS["finans_izle"]:
+                if self.ocr.find_text_on_screen(variant):
+                    return True
+            time.sleep(1)
+        logger.error("Text '%s' not found on screen", UI_TEXTS["finans_izle"])
+        return False
 
     # The following methods are placeholders demonstrating the sequence.
     def execute_workflow(self, data_entry: Dict[str, object]):
