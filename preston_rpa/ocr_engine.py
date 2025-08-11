@@ -73,6 +73,10 @@ class OCREngine:
 
     @staticmethod
     def _normalize(text: str) -> str:
+        try:
+            text = text.encode("latin1").decode("utf-8")
+        except UnicodeError:
+            pass
         mapping = str.maketrans({
             "İ": "I",
             "ı": "i",
