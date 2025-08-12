@@ -30,24 +30,8 @@ def focus_preston_window(simulator_path: str) -> None:
         preston_window = preston_windows[0]
         preston_window.activate()
         preston_window.maximize()
-        pyautogui.click(preston_window.center)
         time.sleep(1)
         return
-
-    # If the tab exists but is not active, cycle through Chrome tabs
-    chrome_windows = gw.getWindowsWithTitle("Chrome")
-    if chrome_windows:
-        chrome_window = chrome_windows[0]
-        chrome_window.activate()
-        chrome_window.maximize()
-        for _ in range(10):
-            active = gw.getActiveWindow()
-            if active and target_title in active.title:
-                pyautogui.click(active.center)
-                time.sleep(1)
-                return
-            pyautogui.hotkey("ctrl", "tab")
-            time.sleep(0.5)
 
     # Open the simulator if the tab could not be found
     chrome_paths = [
@@ -76,7 +60,6 @@ def focus_preston_window(simulator_path: str) -> None:
         preston_window = preston_windows[0]
         preston_window.activate()
         preston_window.maximize()
-        pyautogui.click(preston_window.center)
     time.sleep(1)
 
 
@@ -187,8 +170,9 @@ class PrestonRPA:
                 )
                 window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
             logger.info("Window rect: %s", window_rect)
-            menu_region = (0, 150, window.width, 100)
+            menu_region = (0, 180, window.width, 50)  # Menü y=187 civarında, 50px yükseklik
             logger.info(f"Menu region: {menu_region}")
+            self.ocr._save_debug_image(pyautogui.screenshot(region=menu_region), "debug_menu_region")
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
             if not self.ocr.click_word_pair(menu_region, "Finans", "İzle"):
