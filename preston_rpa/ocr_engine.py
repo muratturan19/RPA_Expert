@@ -18,7 +18,6 @@ import cv2
 from PIL import Image, ImageDraw
 
 import easyocr
-from paddleocr import PaddleOCR
 
 from .config import (
     OCR_CONFIDENCE,
@@ -104,13 +103,6 @@ class OCREngine:
         self.debug = debug
         self.tesseract_lang = "tur"
         self.easyocr_reader = easyocr.Reader(["tr", "en"], gpu=False)
-        try:
-            self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr", use_gpu=False)
-        except ValueError as err:
-            if "use_gpu" in str(err):
-                self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr")
-            else:
-                raise
 
         # Legacy attributes for backward compatibility
         self.use_easyocr = False
@@ -381,24 +373,29 @@ class OCREngine:
         logger.error("Word pair '%s' and '%s' not found on screen", left_word, right_word)
         return False
 
-    def find_text_on_screen(
+    def _find_text_engine(
         self,
-        text: Iterable[str] | str,
-        region=None,
-        confidence: float = OCR_CONFIDENCE,
-        normalize: bool = True,
-        region_pad: int = 0,
+        targets: list[str],
+        variants: list[str],
+        region,
+        confidence: float,
+        normalize: bool,
+        region_pad: int,
+        use_easyocr: bool,
     ) -> Optional[Tuple[int, int, int, int]]:
-        """Find text coordinates using OCR."""
-        img, df, _, used_region = self._screenshot(
-            region=region, step_name="find_text", region_pad=region_pad
-        )
+        orig_use_easyocr = self.use_easyocr
+        orig_reader = self.reader
+        self.use_easyocr = use_easyocr
+        self.reader = self.easyocr_reader if use_easyocr else None
+        try:
+            img, df, _, used_region = self._screenshot(
+                region=region, step_name="find_text", region_pad=region_pad
+            )
+        finally:
+            self.use_easyocr = orig_use_easyocr
+            self.reader = orig_reader
         if img is None or df.empty:
             return None
-        variants = [text] if isinstance(text, str) else list(text)
-        targets = [
-            self._normalize(v) if normalize else v.casefold() for v in variants
-        ]
         df["conf"] = df["conf"].astype(float)
         df = df[df["conf"] >= confidence * 100]
         lines: dict = {}
@@ -435,6 +432,37 @@ class OCREngine:
         if self.debug and variants:
             miss = self._normalize(variants[0]) if normalize else variants[0].casefold()
             self._save_debug_image(img, f"not_found_{miss}")
+        return None
+
+    def find_text_on_screen(
+        self,
+        text: Iterable[str] | str,
+        region=None,
+        confidence: float = OCR_CONFIDENCE,
+        normalize: bool = True,
+        region_pad: int = 0,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """Find text coordinates using EasyOCR first, then fall back to Tesseract."""
+
+        variants = [text] if isinstance(text, str) else list(text)
+        targets = [self._normalize(v) if normalize else v.casefold() for v in variants]
+
+        for use_easyocr, name in ((True, "easyocr"), (False, "tesseract")):
+            try:
+                bbox = self._find_text_engine(
+                    targets,
+                    variants,
+                    region,
+                    confidence,
+                    normalize,
+                    region_pad,
+                    use_easyocr,
+                )
+            except Exception as exc:
+                logger.exception("%s engine failed: %s", name, exc)
+                bbox = None
+            if bbox:
+                return bbox
         return None
 
     def click_text(
@@ -586,96 +614,3 @@ class OCREngine:
                 return int(x), int(y), int(w), int(h)
         return None
 
-    def find_word_pair_paddle(self, img, left_word: str, right_word: str, debug_dir: Path):
-        results = self.paddle_ocr.ocr(np.array(img))
-        item_count = sum(len(line) for line in results)
-        logger.info(f"PaddleOCR found {item_count} items")
-        data = []
-        debug_dir.mkdir(exist_ok=True)
-        annotated = img.copy()
-        draw = ImageDraw.Draw(annotated)
-        log_path = debug_dir / "log.txt"
-        with open(log_path, "w", encoding="utf-8") as log:
-            for line in results:
-                for bbox, (text, conf) in line:
-                    x_coords = [pt[0] for pt in bbox]
-                    y_coords = [pt[1] for pt in bbox]
-                    left = int(min(x_coords))
-                    top = int(min(y_coords))
-                    width = int(max(x_coords) - left)
-                    height = int(max(y_coords) - top)
-                    draw.rectangle(
-                        [left, top, left + width, top + height], outline="red", width=1
-                    )
-                    log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
-                    data.append(
-                        {
-                            "left": left,
-                            "top": top,
-                            "width": width,
-                            "height": height,
-                            "text": text,
-                            "conf": conf * 100,
-                        }
-                    )
-        annotated.save(debug_dir / "annotated.png")
-        df = pd.DataFrame(data)
-        if df.empty:
-            return None
-        df["ntext"] = df["text"].map(self._normalize)
-        df.sort_values("top", inplace=True)
-        line_num = 0
-        last_top = -9999
-        for idx, row in df.iterrows():
-            if row.top - last_top > 10:
-                line_num += 1
-                last_top = row.top
-            df.at[idx, "line_num"] = line_num
-        left_norm = self._normalize(left_word)
-        right_norm = self._normalize(right_word)
-        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
-        for _, L in left_tokens.iterrows():
-            line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
-            right_candidates = line_tokens[line_tokens.ntext == right_norm]
-            if not right_candidates.empty:
-                R = right_candidates.iloc[0]
-                x = min(L.left, R.left)
-                y = min(L.top, R.top)
-                w = max(L.left + L.width, R.left + R.width) - x
-                h = max(L.top + L.height, R.top + R.height) - y
-                return int(x), int(y), int(w), int(h)
-        return None
-
-    def find_word_pair_triple_fallback(
-        self,
-        window_rect: Tuple[int, int, int, int],
-        left_word: str = "finans",
-        right_word: str = "izle",
-        max_gap: int = 300,
-        conf_min: float = 30,
-        region_pad: int = 0,
-    ):
-        """Run all three OCR engines and log their outputs separately."""
-
-        img_raw = pyautogui.screenshot(region=window_rect)
-        processed = self._preprocess_image(img_raw)
-        results = {}
-        for name, func in [
-            ("tesseract", self.find_word_pair_tesseract),
-            ("easyocr", self.find_word_pair_easyocr),
-            ("paddle", self.find_word_pair_paddle),
-        ]:
-            engine_dir = self.run_dir / name
-            engine_dir.mkdir(exist_ok=True)
-            processed.save(engine_dir / "input.png")
-            logger.info("Trying %s...", name)
-            results[name] = func(processed, left_word, right_word, engine_dir)
-            logger.info("%s result: %s", name, results[name])
-
-        for engine in ("tesseract", "easyocr", "paddle"):
-            if results.get(engine):
-                logger.info("SUCCESS: %s found the pair", engine)
-                return results[engine]
-
-        logger.error("FAILED: All three OCR engines failed")
-        return None
