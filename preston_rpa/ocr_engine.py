@@ -37,16 +37,45 @@ def demojibake(s: str) -> str:
 
 
 def normalize_tr(s: str) -> str:
-    """Normalize Turkish text for robust OCR comparisons."""
-    import unicodedata
+    """Normalize Turkish text for case-insensitive comparisons.
+
+    Converts Turkish-specific characters to their closest ASCII
+    equivalents, collapses consecutive whitespace into a single space
+    and lowercases the result. Other characters are preserved.
+    """
 
     s = demojibake(s)
-    s = unicodedata.normalize("NFKD", s)
-    s = s.translate(
-        str.maketrans("İIıŞşĞğÇçÖöÜü", "IIiSsGgCcOoUu")
-    ).lower()
-    s = re.sub(r"[-–—−-]", "-", s)
+    mapping = str.maketrans(
+        {
+            "İ": "I",
+            "I": "I",
+            "ı": "i",
+            "Ş": "S",
+            "ş": "s",
+            "Ğ": "G",
+            "ğ": "g",
+            "Ç": "C",
+            "ç": "c",
+            "Ö": "O",
+            "ö": "o",
+            "Ü": "U",
+            "ü": "u",
+        }
+    )
+    s = s.translate(mapping).lower()
     return re.sub(r"\s+", " ", s).strip()
+
+
+def flexible_text_match(a: str, b: str, threshold: float = 0.8) -> bool:
+    """Perform exact, partial and fuzzy matching between two strings."""
+
+    a_norm = normalize_tr(a)
+    b_norm = normalize_tr(b)
+    if a_norm == b_norm:
+        return True
+    if a_norm in b_norm or b_norm in a_norm:
+        return True
+    return SequenceMatcher(None, a_norm, b_norm).ratio() >= threshold
 
 
 class OCREngine:
@@ -103,8 +132,8 @@ class OCREngine:
         window_rect: Tuple[int, int, int, int],
         left_word: str = "finans",
         right_word: str = "izle",
-        max_gap: int = 220,
-        conf_min: float = 60,
+        max_gap: int = 300,
+        conf_min: float = 30,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Locate two words on the same line within a given pixel gap."""
         img = self._screenshot(region=window_rect)
@@ -113,7 +142,7 @@ class OCREngine:
         df = (
             pytesseract.image_to_data(
                 img,
-                lang=self.lang,
+                lang="tur+eng",
                 config="--oem 3 --psm 6",
                 output_type=pytesseract.Output.DATAFRAME,
             )
@@ -147,8 +176,8 @@ class OCREngine:
         window_rect: Tuple[int, int, int, int],
         left_word: str = "finans",
         right_word: str = "izle",
-        max_gap: int = 220,
-        conf_min: float = 60,
+        max_gap: int = 300,
+        conf_min: float = 30,
     ) -> bool:
         """Find a word pair and click the centre of their combined bounding box."""
         bbox = self.find_word_pair(
