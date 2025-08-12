@@ -178,9 +178,12 @@ class PrestonRPA:
             self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
-            if not self.ocr.click_word_pair(menu_region, "Finans", "İzle"):
-                if not self.ocr.click_word_pair(menu_region, "finans", "izle"):
-                    raise AssertionError("'Finans - İzle' menu not found")
+            bbox = self.ocr.find_word_pair_triple_fallback(menu_region, "Finans", "İzle")
+            if bbox:
+                x, y, w, h = bbox
+                pyautogui.click(x + w // 2, y + h // 2)
+            else:
+                raise AssertionError("'Finans - İzle' menu not found")
             self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
