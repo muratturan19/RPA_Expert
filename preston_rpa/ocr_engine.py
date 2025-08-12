@@ -300,13 +300,46 @@ class OCREngine:
             right_candidates = line_tokens[line_tokens.ntext.isin(right_targets)]
             if not right_candidates.empty:
                 R = right_candidates.iloc[0]
+
+                # Scale factors between OCR image size and original region
+                region_w = used_region[2] if used_region else window_rect[2]
+                region_h = used_region[3] if used_region else window_rect[3]
+                scale_x = img.width / region_w if region_w else 1
+                scale_y = img.height / region_h if region_h else 1
+
+                # Coordinates relative to the search region
+                rel_x = min(L.left, R.left) / scale_x
+                rel_y = min(L.top, R.top) / scale_y
+                rel_w = (
+                    max(L.left + L.width, R.left + R.width) - min(L.left, R.left)
+                ) / scale_x
+                rel_h = (
+                    max(L.top + L.height, R.top + R.height) - min(L.top, R.top)
+                ) / scale_y
+
+                # Absolute coordinates on the screen
                 base_x = used_region[0] if used_region else window_rect[0]
                 base_y = used_region[1] if used_region else window_rect[1]
-                x = min(L.left, R.left) + base_x
-                y = min(L.top, R.top) + base_y
-                w = max(L.left + L.width, R.left + R.width) - min(L.left, R.left)
-                h = max(L.top + L.height, R.top + R.height) - min(L.top, R.top)
-                return x, y, w, h
+                abs_x = int(rel_x + base_x)
+                abs_y = int(rel_y + base_y)
+                abs_w = int(rel_w)
+                abs_h = int(rel_h)
+
+                logger.debug(
+                    "Word pair '%s' '%s' relative coords=%s absolute coords=%s",
+                    left_word,
+                    right_word,
+                    (int(rel_x), int(rel_y), int(rel_w), int(rel_h)),
+                    (abs_x, abs_y, abs_w, abs_h),
+                )
+                try:
+                    with open(self.log_file, "a", encoding="utf-8") as log:
+                        log.write(
+                            f"word_pair {left_word} {right_word}: rel=({int(rel_x)}, {int(rel_y)}, {int(rel_w)}, {int(rel_h)}) abs=({abs_x}, {abs_y}, {abs_w}, {abs_h})\n"
+                        )
+                except Exception:
+                    pass
+                return abs_x, abs_y, abs_w, abs_h
         if self.debug:
             self._save_debug_image(img, f"pair_not_found_{left_word}_{right_word}")
         return None
