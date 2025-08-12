@@ -465,7 +465,12 @@ class OCREngine:
         return None
 
     def find_word_pair_easyocr(self, img, left_word: str, right_word: str):
-        results = self.easyocr_reader.readtext(np.array(img))
+        try:
+            results = self.easyocr_reader.readtext(np.array(img))
+        except Exception as e:
+            logger.error(f"EasyOCR failed: {e}")
+            results = []
+        logger.info(f"EasyOCR found {len(results)} items")
         data = []
         with open("ocr_easyocr_log.txt", "a", encoding="utf-8") as log:
             for bbox, text, conf in results:
@@ -515,6 +520,8 @@ class OCREngine:
 
     def find_word_pair_paddle(self, img, left_word: str, right_word: str):
         results = self.paddle_ocr.ocr(np.array(img))
+        item_count = sum(len(line) for line in results)
+        logger.info(f"PaddleOCR found {item_count} items")
         data = []
         with open("ocr_paddle_log.txt", "a", encoding="utf-8") as log:
             for line in results:
@@ -564,17 +571,26 @@ class OCREngine:
         return None
 
     def find_word_pair_triple_fallback(self, img, left_word: str, right_word: str):
+        logger.info("Trying Tesseract...")
         result = self.find_word_pair_tesseract(img, left_word, right_word)
+        logger.info(f"Tesseract result: {result}")
         if result:
             logger.info("SUCCESS: Tesseract found the pair")
             return result
+
+        logger.info("Trying EasyOCR...")
         result = self.find_word_pair_easyocr(img, left_word, right_word)
+        logger.info(f"EasyOCR result: {result}")
         if result:
             logger.info("SUCCESS: EasyOCR found the pair")
             return result
+
+        logger.info("Trying PaddleOCR...")
         result = self.find_word_pair_paddle(img, left_word, right_word)
+        logger.info(f"PaddleOCR result: {result}")
         if result:
             logger.info("SUCCESS: PaddleOCR found the pair")
             return result
+
         logger.error("FAILED: All three OCR engines failed")
         return None
