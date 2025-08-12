@@ -15,7 +15,7 @@ import pytesseract
 import pyautogui
 import pygetwindow as gw
 import cv2
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from .config import (
     OCR_CONFIDENCE,
@@ -83,35 +83,88 @@ class OCREngine:
         self.lang = OCR_LANGUAGE
         self.debug = debug
 
+        # Create base debug directory and a timestamped run directory
+        self.debug_root = Path("debug_screenshots")
+        self.debug_root.mkdir(exist_ok=True)
+        run_name = datetime.now().strftime("run_%Y%m%d_%H%M%S")
+        self.run_dir = self.debug_root / run_name
+        self.run_dir.mkdir(exist_ok=True)
+        self.step = 0
+        self.log_file = self.run_dir / "ocr_log.txt"
+
     def _save_debug_image(self, img, name: str) -> None:
-        """Save screenshot for debugging purposes."""
+        """Save screenshot for debugging purposes inside the run directory."""
         try:
-            debug_dir = Path("debug")
-            debug_dir.mkdir(exist_ok=True)
-            img.save(debug_dir / f"{name}.png")
+            img.save(self.run_dir / f"{name}.png")
         except Exception as exc:
             logger.error("Failed to save debug image: %s", exc)
 
-    def _screenshot(self, region=None):
+    def _screenshot(self, region=None, step_name: str = "step"):
         try:
+            self.step += 1
+            step_label = f"step{self.step:02d}_{step_name}"
+
             windows = gw.getWindowsWithTitle("Preston")
             if windows:
                 windows[0].activate()
                 time.sleep(0.3)
-            img = pyautogui.screenshot(region=region)
-            img = self._preprocess_image(img)
-            if self.debug:
-                debug_dir = Path("debug")
-                debug_dir.mkdir(exist_ok=True)
-                filename = debug_dir / f"debug_{datetime.now().strftime('%H%M%S')}.png"
-                img.save(filename)
-                print("Screenshot saved, looking for text...")
-                text = pytesseract.image_to_string(img, lang="tur")
-                print(f"ALL OCR TEXT FOUND: {text}")
-            return img
+
+            # Capture full screen for region overlay
+            full_img = pyautogui.screenshot()
+            if region:
+                x, y, w, h = region
+                raw_img = full_img.crop((x, y, x + w, y + h))
+            else:
+                raw_img = full_img
+
+            processed_img = self._preprocess_image(raw_img)
+
+            # Save raw and processed images
+            raw_img.save(self.run_dir / f"{step_label}_raw.png")
+            processed_img.save(self.run_dir / f"{step_label}_processed.png")
+
+            # OCR text output
+            ocr_text = pytesseract.image_to_string(processed_img, lang="tur+eng")
+            with open(
+                self.run_dir / f"{step_label}_ocr_result.txt", "w", encoding="utf-8"
+            ) as f:
+                f.write(ocr_text)
+
+            # Detailed OCR data
+            df = (
+                pytesseract.image_to_data(
+                    processed_img,
+                    lang="tur+eng",
+                    config="--oem 3 --psm 6",
+                    output_type=pytesseract.Output.DATAFRAME,
+                ).dropna(subset=["text"])
+            )
+            df.to_csv(
+                self.run_dir / f"{step_label}_ocr_data.csv",
+                index=False,
+                encoding="utf-8",
+            )
+
+            # Log texts, confidences and coordinates
+            with open(self.log_file, "a", encoding="utf-8") as log:
+                for row in df.itertuples(index=False):
+                    log.write(
+                        f"{step_label}: {row.text} (conf={row.conf}, x={row.left}, y={row.top}, w={row.width}, h={row.height})\n"
+                    )
+
+            # Overlay region rectangle
+            overlay = full_img.copy()
+            if region:
+                draw = ImageDraw.Draw(overlay)
+                draw.rectangle(
+                    [x, y, x + w, y + h], outline="red", width=2
+                )
+            overlay.save(self.run_dir / f"{step_label}_search_region.png")
+
+            return processed_img, df, step_label
         except Exception as exc:
             logger.error("Screenshot failed: %s", exc)
-            return None
+            return None, pd.DataFrame(), ""
 
     @staticmethod
     def _preprocess_image(img: Image.Image) -> Image.Image:
@@ -136,18 +189,13 @@ class OCREngine:
         conf_min: float = 30,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Locate two words on the same line within a given pixel gap."""
-        img = self._screenshot(region=window_rect)
-        if img is None:
-            return None
-        df = (
-            pytesseract.image_to_data(
-                img,
-                lang="tur+eng",
-                config="--oem 3 --psm 6",
-                output_type=pytesseract.Output.DATAFRAME,
-            )
-            .dropna(subset=["text"])
+        img, df, _ = self._screenshot(
+            region=window_rect,
+            step_name=f"word_pair_{left_word}_{right_word}",
         )
+        if img is None or df.empty:
+            return None
+        df["conf"] = df["conf"].astype(float)
         df["ntext"] = df["text"].map(self._normalize)
         df = df[df["conf"] >= conf_min]
         target_left = self._normalize(left_word)
@@ -203,43 +251,26 @@ class OCREngine:
         normalize: bool = True,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Find text coordinates using OCR."""
-        img = self._screenshot(region)
-        if img is None:
+        img, df, _ = self._screenshot(region=region, step_name="find_text")
+        if img is None or df.empty:
             return None
-        data = pytesseract.image_to_data(
-            img,
-            lang=self.lang,
-            config=OCR_TESSERACT_CONFIG,
-            output_type=pytesseract.Output.DICT,
-        )
         variants = [text] if isinstance(text, str) else list(text)
         targets = [
-            self._normalize(v) if normalize else v.casefold()
-            for v in variants
+            self._normalize(v) if normalize else v.casefold() for v in variants
         ]
-        lines = {}
-        for i, found_text in enumerate(data["text"]):
-            if not found_text.strip():
+        df["conf"] = df["conf"].astype(float)
+        df = df[df["conf"] >= confidence * 100]
+        lines: dict = {}
+        for row in df.itertuples(index=False):
+            if not str(row.text).strip():
                 continue
-            if float(data["conf"][i]) / 100 < confidence:
-                continue
-            key = (
-                data["page_num"][i],
-                data["block_num"][i],
-                data["par_num"][i],
-                data["line_num"][i],
-            )
+            key = (row.page_num, row.block_num, row.par_num, row.line_num)
             line = lines.setdefault(
                 key,
                 {"words": [], "left": [], "top": [], "right": [], "bottom": []},
             )
-            line["words"].append(found_text)
-            left, top, width, height = (
-                data["left"][i],
-                data["top"][i],
-                data["width"][i],
-                data["height"][i],
-            )
+            line["words"].append(row.text)
+            left, top, width, height = row.left, row.top, row.width, row.height
             line["left"].append(left)
             line["top"].append(top)
             line["right"].append(left + width)
