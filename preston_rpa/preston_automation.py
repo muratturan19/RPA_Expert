@@ -130,7 +130,7 @@ class PrestonRPA:
                     pass
 
             l, t, r, b = ch.BoundingRectangle
-            menu_roi = (l + 8, t + 130, r - 8, t + 210)
+            menu_roi = (l + 8, t + 170, r - 8, t + 220)
             center_roi = (l + 200, t + 260, r - 200, t + 420)
             window_rect = (l, t, r - l, b - t)
 
@@ -168,7 +168,7 @@ class PrestonRPA:
             if not window:
                 raise AssertionError("Preston window not active")
             window_rect = (window.left, window.top, window.width, window.height)
-            if not self.ocr.click_word_pair(window_rect, "finans", "izle"):
+            if not self.ocr.click_word_pair(window_rect, "Finans", "İzle"):
                 raise AssertionError("'Finans - İzle' menu not found")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
