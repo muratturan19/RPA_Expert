@@ -175,7 +175,7 @@ class PrestonRPA:
                 window.height,
             )
             screen_w, screen_h = pyautogui.size()
-            window_rect = (window.left, window.top, window.width, window.height)
+            window_rect = (0, 0, window.width, window.height)
             if (
                 window.left < 0
                 or window.top < 0
@@ -187,11 +187,13 @@ class PrestonRPA:
                 )
                 window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
             logger.info("Window rect: %s", window_rect)
+            menu_region = (0, 150, window.width, 100)
+            logger.info(f"Menu region: {menu_region}")
             # Menu search screenshots
-            self.ocr._screenshot(region=window_rect, step_name="menu_search_before")
-            if not self.ocr.click_word_pair(window_rect, "Finans", "İzle"):
+            self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
+            if not self.ocr.click_word_pair(menu_region, "Finans", "İzle"):
                 raise AssertionError("'Finans - İzle' menu not found")
-            self.ocr._screenshot(region=window_rect, step_name="menu_search_after")
+            self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
                 raise AssertionError("'Finans - İzle' dropdown did not open")
