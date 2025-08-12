@@ -82,7 +82,7 @@ def focus_preston_window(simulator_path: str) -> None:
 
 class PrestonRPA:
     def __init__(self):
-        self.ocr = OCREngine()
+        self.ocr = OCREngine(debug=True)
         self.image_matcher = ImageMatcher()
         self.running = True
 
@@ -168,11 +168,15 @@ class PrestonRPA:
             if not window:
                 raise AssertionError("Preston window not active")
             window_rect = (window.left, window.top, window.width, window.height)
+            # Menu search screenshots
+            self.ocr._screenshot(region=window_rect, step_name="menu_search_before")
             if not self.ocr.click_word_pair(window_rect, "Finans", "İzle"):
                 raise AssertionError("'Finans - İzle' menu not found")
+            self.ocr._screenshot(region=window_rect, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
                 raise AssertionError("'Finans - İzle' dropdown did not open")
+            self.ocr._screenshot(region=window_rect, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
             # Placeholder for more navigation steps...
 
