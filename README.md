@@ -15,7 +15,8 @@ Bu proje, Preston muhasebe yazılımı için POS hareketlerinin otomatik olarak 
 ```bash
 pip install -r requirements.txt
 ```
-3. Windows ortamında tesseract ve gerekli ekran erişim izinleri hazır olmalıdır.
+3. Tesseract'ın Türkçe dil paketi kurulmuş olmalıdır (örn. `sudo apt-get install tesseract-ocr-tur`).
+4. Windows ortamında tesseract ve gerekli ekran erişim izinleri hazır olmalıdır.
 
 ## Kullanım
 ```bash

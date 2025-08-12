@@ -10,6 +10,7 @@ from pathlib import Path
 from difflib import SequenceMatcher
 
 import numpy as np
+import pandas as pd
 import pytesseract
 import pyautogui
 import pygetwindow as gw
@@ -25,6 +26,27 @@ from .config import (
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def demojibake(s: str) -> str:
+    """Fix mojibake by re-decoding Latin-1 bytes as UTF-8."""
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except Exception:
+        return s
+
+
+def normalize_tr(s: str) -> str:
+    """Normalize Turkish text for robust OCR comparisons."""
+    import unicodedata
+
+    s = demojibake(s)
+    s = unicodedata.normalize("NFKD", s)
+    s = s.translate(
+        str.maketrans("İIıŞşĞğÇçÖöÜü", "IIiSsGgCcOoUu")
+    ).lower()
+    s = re.sub(r"[-–—−-]", "-", s)
+    return re.sub(r"\s+", " ", s).strip()
 
 
 class OCREngine:
@@ -73,28 +95,8 @@ class OCREngine:
 
     @staticmethod
     def _normalize(text: str) -> str:
-        try:
-            text = text.encode("latin1").decode("utf-8")
-        except UnicodeError:
-            pass
-        mapping = str.maketrans({
-            "İ": "I",
-            "ı": "i",
-            "Ş": "S",
-            "ş": "s",
-            "Ğ": "G",
-            "ğ": "g",
-            "Ç": "C",
-            "ç": "c",
-            "Ö": "O",
-            "ö": "o",
-            "Ü": "U",
-            "ü": "u",
-        })
-        text = text.translate(mapping)
-        text = re.sub(r"[-–—]", "-", text)
-        text = re.sub(r"\s+", " ", text)
-        return text.strip().casefold()
+        """Thin wrapper around normalize_tr for backward compatibility."""
+        return normalize_tr(text)
 
     def find_word_pair(
         self,
@@ -108,44 +110,34 @@ class OCREngine:
         img = self._screenshot(region=window_rect)
         if img is None:
             return None
-        data = pytesseract.image_to_data(
-            img,
-            lang=self.lang,
-            config="--psm 6",
-            output_type=pytesseract.Output.DICT,
-        )
-        lines: dict[int, list[dict[str, int | str]]] = {}
-        for i, text in enumerate(data["text"]):
-            if not text.strip():
-                continue
-            if float(data["conf"][i]) < conf_min:
-                continue
-            line = lines.setdefault(data["line_num"][i], [])
-            line.append(
-                {
-                    "text": self._normalize(text),
-                    "left": data["left"][i],
-                    "top": data["top"][i],
-                    "right": data["left"][i] + data["width"][i],
-                    "bottom": data["top"][i] + data["height"][i],
-                }
+        df = (
+            pytesseract.image_to_data(
+                img,
+                lang=self.lang,
+                config="--oem 3 --psm 6",
+                output_type=pytesseract.Output.DATAFRAME,
             )
+            .dropna(subset=["text"])
+        )
+        df["ntext"] = df["text"].map(self._normalize)
+        df = df[df["conf"] >= conf_min]
         target_left = self._normalize(left_word)
         target_right = self._normalize(right_word)
-        for tokens in lines.values():
-            tokens.sort(key=lambda t: t["left"])
-            for idx, tok in enumerate(tokens):
-                if tok["text"] != target_left:
-                    continue
-                for cand in tokens[idx + 1 :]:
-                    if cand["left"] - tok["left"] > max_gap:
-                        break
-                    if cand["text"] == target_right:
-                        x = min(tok["left"], cand["left"]) + window_rect[0]
-                        y = min(tok["top"], cand["top"]) + window_rect[1]
-                        w = max(tok["right"], cand["right"]) - min(tok["left"], cand["left"])
-                        h = max(tok["bottom"], cand["bottom"]) - min(tok["top"], cand["top"])
-                        return x, y, w, h
+        for _, row in df.groupby("line_num"):
+            toks = row.sort_values("left")
+            for L in toks[toks.ntext == target_left].itertuples():
+                R = toks[
+                    (toks.left > L.left)
+                    & (toks.left - L.left < max_gap)
+                    & (toks.ntext == target_right)
+                ]
+                if not R.empty:
+                    R = R.iloc[0]
+                    x = min(L.left, R.left) + window_rect[0]
+                    y = min(L.top, R.top) + window_rect[1]
+                    w = max(L.left + L.width, R.left + R.width) - min(L.left, R.left)
+                    h = max(L.top + L.height, R.top + R.height) - min(L.top, R.top)
+                    return x, y, w, h
         if self.debug:
             self._save_debug_image(img, f"pair_not_found_{left_word}_{right_word}")
         return None
