@@ -5,11 +5,23 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 LOG_FILE = Path(__file__).resolve().parent / "automation.log"
+_log_file_cleared = False
 
 
 def get_logger(name: str = "preston_rpa") -> logging.Logger:
-    """Return a configured logger instance."""
+    """Return a configured logger instance.
+
+    The log file is cleared on first logger initialization to ensure a fresh
+    log on each application startup.
+    """
+
+    global _log_file_cleared
     logger = logging.getLogger(name)
+
+    if not _log_file_cleared and LOG_FILE.exists():
+        LOG_FILE.unlink()
+        _log_file_cleared = True
+
     if logger.handlers:
         return logger
 

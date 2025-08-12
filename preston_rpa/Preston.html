@@ -120,7 +120,8 @@
             setInterval(updateTime, 1000);
             setupEventListeners();
             initializeOCRTargets();
-            
+            document.getElementById('logContent').innerHTML = '';
+
             // Start in production mode - no debug logs
             console.log('Preston Xi Kurumsal Kaynak Yönetim Sistemi v2.1.4');
             console.log('Copyright © 2024 Preston Software Ltd.');
