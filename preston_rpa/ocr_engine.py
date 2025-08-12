@@ -217,10 +217,21 @@ class OCREngine:
             )
 
             # Log texts, confidences and coordinates
+            # Convert OCR engine coordinates (which are based on the scaled
+            # ``processed_img``) back to the original screen space so that the
+            # debug log reflects real cursor locations.
+            scale_x = processed_img.width / raw_img.width if raw_img.width else 1
+            scale_y = processed_img.height / raw_img.height if raw_img.height else 1
             with open(self.log_file, "a", encoding="utf-8") as log:
                 for row in df.itertuples(index=False):
+                    reg_left = row.left / scale_x
+                    reg_top = row.top / scale_y
+                    reg_w = row.width / scale_x
+                    reg_h = row.height / scale_y
+                    abs_left = int(reg_left + x) if region else int(reg_left)
+                    abs_top = int(reg_top + y) if region else int(reg_top)
                     log.write(
-                        f"{step_label}: {row.text} (conf={row.conf}, x={row.left}, y={row.top}, w={row.width}, h={row.height})\n"
+                        f"{step_label}: {row.text} (conf={row.conf}, x={abs_left}, y={abs_top}, w={int(reg_w)}, h={int(reg_h)})\n"
                     )
 
             # Overlay region rectangle
