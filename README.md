@@ -6,6 +6,7 @@ Bu proje, Preston muhasebe yazılımı için POS hareketlerinin otomatik olarak 
 - Excel dosyalarından POSH ile başlayan ve 5+ rakamla biten açıklamaları filtreleme
 - Tarihe göre gruplama ve toplam tutar hesaplama
 - Pytesseract tabanlı OCR ile ekran üzerindeki metinleri bulma
+- EasyOCR desteği ve geliştirilmiş görüntü ön işleme ile daha yüksek doğruluk
 - OpenCV ile ikon eşleştirme
 - Streamlit ile gerçek zamanlı ilerleme ve log görüntüleme
 

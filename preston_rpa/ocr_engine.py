@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 import numpy as np
 import pandas as pd
 import pytesseract
+import easyocr
 import pyautogui
 import pygetwindow as gw
 import cv2
@@ -66,6 +67,15 @@ def normalize_tr(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def fix_common_ocr_errors(s: str) -> str:
+    """Correct frequently observed OCR mistakes."""
+    corrections = {
+        "G": "Ö",  # G mistaken for Ö
+        "l": "I",  # lowercase L mistaken for I
+    }
+    return s.translate(str.maketrans(corrections))
+
+
 def flexible_text_match(a: str, b: str, threshold: float = 0.8) -> bool:
     """Perform exact, partial and fuzzy matching between two strings."""
 
@@ -92,6 +102,9 @@ class OCREngine:
         self.step = 0
         self.log_file = self.run_dir / "ocr_log.txt"
 
+        # EasyOCR reader (CPU mode)
+        self.easy_reader = easyocr.Reader(["tr", "en"], gpu=False)
+
     def _save_debug_image(self, img, name: str) -> None:
         """Save screenshot for debugging purposes inside the run directory."""
         try:
@@ -99,7 +112,7 @@ class OCREngine:
         except Exception as exc:
             logger.error("Failed to save debug image: %s", exc)
 
-    def _screenshot(self, region=None, step_name: str = "step"):
+    def _screenshot(self, region=None, step_name: str = "step", psm: int = 7, pad: int = 0):
         try:
             self.step += 1
             step_label = f"step{self.step:02d}_{step_name}"
@@ -113,6 +126,11 @@ class OCREngine:
             full_img = pyautogui.screenshot()
             if region:
                 x, y, w, h = region
+                if pad:
+                    x = max(x - pad, 0)
+                    y = max(y - pad, 0)
+                    w += pad * 2
+                    h += pad * 2
                 raw_img = full_img.crop((x, y, x + w, y + h))
             else:
                 raw_img = full_img
@@ -124,7 +142,10 @@ class OCREngine:
             processed_img.save(self.run_dir / f"{step_label}_processed.png")
 
             # OCR text output
-            ocr_text = pytesseract.image_to_string(processed_img, lang="tur+eng")
+            ocr_config = f"{OCR_TESSERACT_CONFIG} --psm {psm}"
+            ocr_text = pytesseract.image_to_string(
+                processed_img, lang="tur+eng", config=ocr_config
+            )
             with open(
                 self.run_dir / f"{step_label}_ocr_result.txt", "w", encoding="utf-8"
             ) as f:
@@ -135,7 +156,7 @@ class OCREngine:
                 pytesseract.image_to_data(
                     processed_img,
                     lang="tur+eng",
-                    config="--oem 3 --psm 6",
+                    config=ocr_config,
                     output_type=pytesseract.Output.DATAFRAME,
                 ).dropna(subset=["text"])
             )
@@ -169,10 +190,14 @@ class OCREngine:
     @staticmethod
     def _preprocess_image(img: Image.Image) -> Image.Image:
         gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
-        gray = cv2.resize(gray, None, fx=1.5, fy=1.5, interpolation=cv2.INTER_LINEAR)
-        thresh = cv2.adaptiveThreshold(
-            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 2
+        gray = cv2.resize(gray, None, fx=3, fy=3, interpolation=cv2.INTER_LINEAR)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, thresh = cv2.threshold(
+            blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
+        kernel = np.ones((3, 3), np.uint8)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
         return Image.fromarray(thresh)
 
     @staticmethod
@@ -187,15 +212,20 @@ class OCREngine:
         right_word: str = "izle",
         max_gap: int = 300,
         conf_min: float = 30,
+        psm: int = 7,
+        pad: int = 0,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Locate two words on the same line within a given pixel gap."""
         img, df, _ = self._screenshot(
             region=window_rect,
             step_name=f"word_pair_{left_word}_{right_word}",
+            psm=psm,
+            pad=pad,
         )
         if img is None or df.empty:
             return None
         df["conf"] = df["conf"].astype(float)
+        df["text"] = df["text"].map(fix_common_ocr_errors)
         df["ntext"] = df["text"].map(self._normalize)
         df = df[df["conf"] >= conf_min]
         target_left = self._normalize(left_word)
@@ -226,6 +256,8 @@ class OCREngine:
         right_word: str = "izle",
         max_gap: int = 300,
         conf_min: float = 30,
+        psm: int = 7,
+        pad: int = 0,
     ) -> bool:
         """Find a word pair and click the centre of their combined bounding box."""
         bbox = self.find_word_pair(
@@ -234,6 +266,8 @@ class OCREngine:
             right_word=right_word,
             max_gap=max_gap,
             conf_min=conf_min,
+            psm=psm,
+            pad=pad,
         )
         if bbox:
             x, y, w, h = bbox
@@ -249,9 +283,11 @@ class OCREngine:
         region=None,
         confidence: float = OCR_CONFIDENCE,
         normalize: bool = True,
+        psm: int = 7,
+        pad: int = 0,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Find text coordinates using OCR."""
-        img, df, _ = self._screenshot(region=region, step_name="find_text")
+        img, df, _ = self._screenshot(region=region, step_name="find_text", psm=psm, pad=pad)
         if img is None or df.empty:
             return None
         variants = [text] if isinstance(text, str) else list(text)
@@ -269,7 +305,8 @@ class OCREngine:
                 key,
                 {"words": [], "left": [], "top": [], "right": [], "bottom": []},
             )
-            line["words"].append(row.text)
+            fixed = fix_common_ocr_errors(row.text)
+            line["words"].append(fixed)
             left, top, width, height = row.left, row.top, row.width, row.height
             line["left"].append(left)
             line["top"].append(top)
@@ -291,6 +328,24 @@ class OCREngine:
                         x += region[0]
                         y += region[1]
                     return x, y, w, h
+        # Fallback to EasyOCR if not found
+        results = self.easy_reader.readtext(np.array(img))
+        for bbox, result_text, _ in results:
+            fixed = fix_common_ocr_errors(result_text)
+            line_norm = self._normalize(fixed) if normalize else fixed.casefold()
+            for target in targets:
+                ratio = SequenceMatcher(None, line_norm, target).ratio()
+                if target in line_norm or ratio >= OCR_FUZZY_THRESHOLD:
+                    xs = [pt[0] for pt in bbox]
+                    ys = [pt[1] for pt in bbox]
+                    x = min(xs)
+                    y = min(ys)
+                    w = max(xs) - x
+                    h = max(ys) - y
+                    if region:
+                        x += region[0]
+                        y += region[1]
+                    return x, y, w, h
         if self.debug and variants:
             miss = self._normalize(variants[0]) if normalize else variants[0].casefold()
             self._save_debug_image(img, f"not_found_{miss}")
@@ -302,11 +357,13 @@ class OCREngine:
         offset_x: int = 0,
         offset_y: int = 0,
         region=None,
+        psm: int = 7,
+        pad: int = 0,
     ) -> bool:
         """Click on found text or any of its variants."""
         variants = [text] if isinstance(text, str) else list(text)
         for variant in variants:
-            coords = self.find_text_on_screen(variant, region=region)
+            coords = self.find_text_on_screen(variant, region=region, psm=psm, pad=pad)
             if coords:
                 x, y, w, h = coords
                 pyautogui.click(x + w // 2 + offset_x, y + h // 2 + offset_y)
@@ -318,12 +375,12 @@ class OCREngine:
         return False
 
     def wait_for_text(
-        self, text: str, timeout: float = 10, region=None
+        self, text: str, timeout: float = 10, region=None, psm: int = 7, pad: int = 0
     ) -> bool:
         """Wait until text appears on screen."""
         end_time = time.time() + timeout
         while time.time() < end_time:
-            if self.find_text_on_screen(text, region=region):
+            if self.find_text_on_screen(text, region=region, psm=psm, pad=pad):
                 return True
             time.sleep(0.5)
         logger.error("Timeout waiting for text: %s", text)

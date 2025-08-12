@@ -6,8 +6,9 @@ Configuration settings for Preston RPA system.
 OCR_CONFIDENCE = 0.8
 # Use Turkish language pack
 OCR_LANGUAGE = "tur"
-# Tesseract configuration string (single line mode for menu bar)
-OCR_TESSERACT_CONFIG = "--psm 7"
+# Tesseract base configuration; PSM (page segmentation mode) is appended at runtime
+# PSM 7 is recommended for single-line regions, while PSM 8 can be used for single words.
+OCR_TESSERACT_CONFIG = "--oem 1 -c preserve_interword_spaces=1"
 # Minimum similarity ratio (0-1) for fuzzy text matching in OCR
 OCR_FUZZY_THRESHOLD = 0.65
 
