@@ -17,10 +17,8 @@ import pygetwindow as gw
 import cv2
 from PIL import Image, ImageDraw
 
-try:
-    import easyocr
-except Exception:  # pragma: no cover - optional dependency
-    easyocr = None
+import easyocr
+from paddleocr import PaddleOCR
 
 from .config import (
     OCR_CONFIDENCE,
@@ -101,15 +99,16 @@ def flexible_text_match(a: str, b: str, threshold: float = 0.8) -> bool:
 
 
 class OCREngine:
-    def __init__(self, debug: bool = False, use_easyocr: bool = False):
+    def __init__(self, debug: bool = False):
         self.lang = OCR_LANGUAGE
         self.debug = debug
-        self.use_easyocr = use_easyocr and easyocr is not None
-        if use_easyocr and easyocr is None:
-            logger.warning("EasyOCR not installed; falling back to Tesseract")
+        self.tesseract_lang = "tur"
+        self.easyocr_reader = easyocr.Reader(["tr", "en"], gpu=False)
+        self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr", use_gpu=False)
+
+        # Legacy attributes for backward compatibility
+        self.use_easyocr = False
         self.reader = None
-        if self.use_easyocr:
-            self.reader = easyocr.Reader(["tr", "en"], gpu=False)
 
         # Create base debug directory and a timestamped run directory
         self.debug_root = Path("debug_screenshots")
@@ -423,3 +422,153 @@ class OCREngine:
             time.sleep(0.5)
         logger.error("Timeout waiting for text: %s", text)
         return False
+
+    def find_word_pair_tesseract(self, img, left_word: str, right_word: str):
+        df = (
+            pytesseract.image_to_data(
+                img, lang=self.tesseract_lang, output_type=pytesseract.Output.DATAFRAME
+            ).dropna(subset=["text"])
+        )
+        with open("ocr_tesseract_log.txt", "a", encoding="utf-8") as log:
+            for row in df.itertuples(index=False):
+                log.write(
+                    f"{row.text}\t{row.conf}\t{row.left},{row.top},{row.width},{row.height}\n"
+                )
+        df["ntext"] = df["text"].map(self._normalize)
+        df.sort_values("top", inplace=True)
+        line_num = 0
+        last_top = -9999
+        for idx, row in df.iterrows():
+            if row.top - last_top > 10:
+                line_num += 1
+                last_top = row.top
+            df.at[idx, "line_num"] = line_num
+        left_norm = self._normalize(left_word)
+        right_norm = self._normalize(right_word)
+        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
+        for _, L in left_tokens.iterrows():
+            line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
+            right_candidates = line_tokens[line_tokens.ntext == right_norm]
+            if not right_candidates.empty:
+                R = right_candidates.iloc[0]
+                x = min(L.left, R.left)
+                y = min(L.top, R.top)
+                w = max(L.left + L.width, R.left + R.width) - x
+                h = max(L.top + L.height, R.top + R.height) - y
+                return int(x), int(y), int(w), int(h)
+        return None
+
+    def find_word_pair_easyocr(self, img, left_word: str, right_word: str):
+        results = self.easyocr_reader.readtext(np.array(img))
+        data = []
+        with open("ocr_easyocr_log.txt", "a", encoding="utf-8") as log:
+            for bbox, text, conf in results:
+                x_coords = [pt[0] for pt in bbox]
+                y_coords = [pt[1] for pt in bbox]
+                left = int(min(x_coords))
+                top = int(min(y_coords))
+                width = int(max(x_coords) - left)
+                height = int(max(y_coords) - top)
+                log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
+                data.append(
+                    {
+                        "left": left,
+                        "top": top,
+                        "width": width,
+                        "height": height,
+                        "text": text,
+                        "conf": conf * 100,
+                    }
+                )
+        df = pd.DataFrame(data)
+        if df.empty:
+            return None
+        df["ntext"] = df["text"].map(self._normalize)
+        df.sort_values("top", inplace=True)
+        line_num = 0
+        last_top = -9999
+        for idx, row in df.iterrows():
+            if row.top - last_top > 10:
+                line_num += 1
+                last_top = row.top
+            df.at[idx, "line_num"] = line_num
+        left_norm = self._normalize(left_word)
+        right_norm = self._normalize(right_word)
+        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
+        for _, L in left_tokens.iterrows():
+            line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
+            right_candidates = line_tokens[line_tokens.ntext == right_norm]
+            if not right_candidates.empty:
+                R = right_candidates.iloc[0]
+                x = min(L.left, R.left)
+                y = min(L.top, R.top)
+                w = max(L.left + L.width, R.left + R.width) - x
+                h = max(L.top + L.height, R.top + R.height) - y
+                return int(x), int(y), int(w), int(h)
+        return None
+
+    def find_word_pair_paddle(self, img, left_word: str, right_word: str):
+        results = self.paddle_ocr.ocr(np.array(img))
+        data = []
+        with open("ocr_paddle_log.txt", "a", encoding="utf-8") as log:
+            for line in results:
+                for bbox, (text, conf) in line:
+                    x_coords = [pt[0] for pt in bbox]
+                    y_coords = [pt[1] for pt in bbox]
+                    left = int(min(x_coords))
+                    top = int(min(y_coords))
+                    width = int(max(x_coords) - left)
+                    height = int(max(y_coords) - top)
+                    log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
+                    data.append(
+                        {
+                            "left": left,
+                            "top": top,
+                            "width": width,
+                            "height": height,
+                            "text": text,
+                            "conf": conf * 100,
+                        }
+                    )
+        df = pd.DataFrame(data)
+        if df.empty:
+            return None
+        df["ntext"] = df["text"].map(self._normalize)
+        df.sort_values("top", inplace=True)
+        line_num = 0
+        last_top = -9999
+        for idx, row in df.iterrows():
+            if row.top - last_top > 10:
+                line_num += 1
+                last_top = row.top
+            df.at[idx, "line_num"] = line_num
+        left_norm = self._normalize(left_word)
+        right_norm = self._normalize(right_word)
+        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
+        for _, L in left_tokens.iterrows():
+            line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
+            right_candidates = line_tokens[line_tokens.ntext == right_norm]
+            if not right_candidates.empty:
+                R = right_candidates.iloc[0]
+                x = min(L.left, R.left)
+                y = min(L.top, R.top)
+                w = max(L.left + L.width, R.left + R.width) - x
+                h = max(L.top + L.height, R.top + R.height) - y
+                return int(x), int(y), int(w), int(h)
+        return None
+
+    def find_word_pair_triple_fallback(self, img, left_word: str, right_word: str):
+        result = self.find_word_pair_tesseract(img, left_word, right_word)
+        if result:
+            logger.info("SUCCESS: Tesseract found the pair")
+            return result
+        result = self.find_word_pair_easyocr(img, left_word, right_word)
+        if result:
+            logger.info("SUCCESS: EasyOCR found the pair")
+            return result
+        result = self.find_word_pair_paddle(img, left_word, right_word)
+        if result:
+            logger.info("SUCCESS: PaddleOCR found the pair")
+            return result
+        logger.error("FAILED: All three OCR engines failed")
+        return None
