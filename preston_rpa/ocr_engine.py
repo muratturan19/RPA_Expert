@@ -503,12 +503,15 @@ class OCREngine:
                 line_num += 1
                 last_top = row.top
             df.at[idx, "line_num"] = line_num
-        left_norm = self._normalize(left_word)
-        right_norm = self._normalize(right_word)
-        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
+        left_variants = ["Finans", "finans", "FINANS"]
+        right_variants = ["İzle", "izle", "IZLE", "Izle"]
+        left_targets = {self._normalize(w) for w in left_variants}
+        right_targets = {self._normalize(w) for w in right_variants}
+
+        left_tokens = df[df.ntext.isin(left_targets)].sort_values(["line_num", "left"])
         for _, L in left_tokens.iterrows():
             line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
-            right_candidates = line_tokens[line_tokens.ntext == right_norm]
+            right_candidates = line_tokens[line_tokens.ntext.isin(right_targets)]
             if not right_candidates.empty:
                 R = right_candidates.iloc[0]
                 x = min(L.left, R.left)
@@ -565,12 +568,15 @@ class OCREngine:
                 line_num += 1
                 last_top = row.top
             df.at[idx, "line_num"] = line_num
-        left_norm = self._normalize(left_word)
-        right_norm = self._normalize(right_word)
-        left_tokens = df[df.ntext == left_norm].sort_values(["line_num", "left"])
+        left_variants = ["Finans", "finans", "FINANS"]
+        right_variants = ["İzle", "izle", "IZLE", "Izle"]
+        left_targets = {self._normalize(w) for w in left_variants}
+        right_targets = {self._normalize(w) for w in right_variants}
+
+        left_tokens = df[df.ntext.isin(left_targets)].sort_values(["line_num", "left"])
         for _, L in left_tokens.iterrows():
             line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
-            right_candidates = line_tokens[line_tokens.ntext == right_norm]
+            right_candidates = line_tokens[line_tokens.ntext.isin(right_targets)]
             if not right_candidates.empty:
                 R = right_candidates.iloc[0]
                 x = min(L.left, R.left)
