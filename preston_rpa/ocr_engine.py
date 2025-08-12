@@ -67,15 +67,32 @@ def normalize_tr(s: str) -> str:
 
 
 def flexible_text_match(a: str, b: str, threshold: float = 0.8) -> bool:
-    """Perform exact, partial and fuzzy matching between two strings."""
+    """Perform exact, partial and fuzzy matching between two strings.
 
-    a_norm = normalize_tr(a)
-    b_norm = normalize_tr(b)
-    if a_norm == b_norm:
-        return True
-    if a_norm in b_norm or b_norm in a_norm:
-        return True
-    return SequenceMatcher(None, a_norm, b_norm).ratio() >= threshold
+    Tries both upper- and lower-case variants, treats Turkish ``İ``/``i``
+    as equivalent and handles common OCR confusions between ``Ö`` and
+    ``G``/``0`` characters.
+    """
+
+    def canonical_variants(text: str) -> set[str]:
+        forms = {text, text.lower(), text.upper()}
+        variants: set[str] = set()
+        for form in forms:
+            norm = normalize_tr(form)
+            norm = norm.replace("0", "o").replace("g", "o")
+            variants.add(norm)
+        return variants
+
+    a_vars = canonical_variants(a)
+    b_vars = canonical_variants(b)
+
+    for av in a_vars:
+        for bv in b_vars:
+            if av == bv or av in bv or bv in av:
+                return True
+            if SequenceMatcher(None, av, bv).ratio() >= threshold:
+                return True
+    return False
 
 
 class OCREngine:
@@ -124,7 +141,9 @@ class OCREngine:
             processed_img.save(self.run_dir / f"{step_label}_processed.png")
 
             # OCR text output
-            ocr_text = pytesseract.image_to_string(processed_img, lang="tur+eng")
+            ocr_text = pytesseract.image_to_string(
+                processed_img, lang="tur+eng", config=OCR_TESSERACT_CONFIG
+            )
             with open(
                 self.run_dir / f"{step_label}_ocr_result.txt", "w", encoding="utf-8"
             ) as f:
@@ -135,7 +154,7 @@ class OCREngine:
                 pytesseract.image_to_data(
                     processed_img,
                     lang="tur+eng",
-                    config="--oem 3 --psm 6",
+                    config=OCR_TESSERACT_CONFIG,
                     output_type=pytesseract.Output.DATAFRAME,
                 ).dropna(subset=["text"])
             )
@@ -198,23 +217,35 @@ class OCREngine:
         df["conf"] = df["conf"].astype(float)
         df["ntext"] = df["text"].map(self._normalize)
         df = df[df["conf"] >= conf_min]
-        target_left = self._normalize(left_word)
-        target_right = self._normalize(right_word)
-        for _, row in df.groupby("line_num"):
-            toks = row.sort_values("left")
-            for L in toks[toks.ntext == target_left].itertuples():
-                R = toks[
-                    (toks.left > L.left)
-                    & (toks.left - L.left < max_gap)
-                    & (toks.ntext == target_right)
-                ]
-                if not R.empty:
-                    R = R.iloc[0]
-                    x = min(L.left, R.left) + window_rect[0]
-                    y = min(L.top, R.top) + window_rect[1]
-                    w = max(L.left + L.width, R.left + R.width) - min(L.left, R.left)
-                    h = max(L.top + L.height, R.top + R.height) - min(L.top, R.top)
-                    return x, y, w, h
+
+        left_norm = self._normalize(left_word)
+        right_norm = self._normalize(right_word)
+        left_variants = (
+            ["Finans", "finans", "FINANS"]
+            if left_norm == "finans"
+            else [left_word, left_word.lower(), left_word.upper()]
+        )
+        right_variants = (
+            ["İzle", "izle", "IZLE", "Izle"]
+            if right_norm == "izle"
+            else [right_word, right_word.lower(), right_word.upper()]
+        )
+        left_targets = {self._normalize(w) for w in left_variants}
+        right_targets = {self._normalize(w) for w in right_variants}
+
+        # Search left word first, then look for the right word on the same line
+        left_tokens = df[df.ntext.isin(left_targets)].sort_values(["line_num", "left"])
+        for L in left_tokens.itertuples():
+            line_tokens = df[(df.line_num == L.line_num) & (df.left > L.left)]
+            line_tokens = line_tokens[line_tokens.left - L.left < max_gap]
+            right_candidates = line_tokens[line_tokens.ntext.isin(right_targets)]
+            if not right_candidates.empty:
+                R = right_candidates.iloc[0]
+                x = min(L.left, R.left) + window_rect[0]
+                y = min(L.top, R.top) + window_rect[1]
+                w = max(L.left + L.width, R.left + R.width) - min(L.left, R.left)
+                h = max(L.top + L.height, R.top + R.height) - min(L.top, R.top)
+                return x, y, w, h
         if self.debug:
             self._save_debug_image(img, f"pair_not_found_{left_word}_{right_word}")
         return None

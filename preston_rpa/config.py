@@ -7,7 +7,7 @@ OCR_CONFIDENCE = 0.8
 # Use Turkish language pack
 OCR_LANGUAGE = "tur"
 # Tesseract configuration string (single line mode for menu bar)
-OCR_TESSERACT_CONFIG = "--psm 7"
+OCR_TESSERACT_CONFIG = "--oem 3 --psm 6 -c tessedit_char_whitelist=ABCÇDEFGĞHIİJKLMNOÖPQRSŞTUÜVWXYZabcçdefgğhıijklmnoöpqrsştuüvwxyz0123456789 |-"
 # Minimum similarity ratio (0-1) for fuzzy text matching in OCR
 OCR_FUZZY_THRESHOLD = 0.65
 
