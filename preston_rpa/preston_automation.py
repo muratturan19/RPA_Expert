@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 def focus_preston_window(simulator_path: str) -> None:
     """Bring Preston simulator tab to the foreground or open it if missing."""
-    target_title = "Preston XI - Kurumsal Kaynak Yönetim Sistemi"
+    target_title = "Preston Xi Kurumsal Kay"
 
     # Try to locate a window where the desired tab is already active
     preston_windows = gw.getWindowsWithTitle(target_title)
@@ -170,13 +170,16 @@ class PrestonRPA:
                 )
                 window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
             logger.info("Window rect: %s", window_rect)
-            menu_region = (0, 180, window.width, 50)  # Menü y=187 civarında, 50px yükseklik
+            menu_region = (0, 170, window.width, 40)  # y=170-210 arası, menü çubuğu
             logger.info(f"Menu region: {menu_region}")
-            self.ocr._save_debug_image(pyautogui.screenshot(region=menu_region), "debug_menu_region")
+            menu_screenshot = pyautogui.screenshot(region=menu_region)
+            menu_screenshot.save("debug_menu_only.png")
+            self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
             if not self.ocr.click_word_pair(menu_region, "Finans", "İzle"):
-                raise AssertionError("'Finans - İzle' menu not found")
+                if not self.ocr.click_word_pair(menu_region, "finans", "izle"):
+                    raise AssertionError("'Finans - İzle' menu not found")
             self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
