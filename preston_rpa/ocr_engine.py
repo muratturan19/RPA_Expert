@@ -104,7 +104,13 @@ class OCREngine:
         self.debug = debug
         self.tesseract_lang = "tur"
         self.easyocr_reader = easyocr.Reader(["tr", "en"], gpu=False)
-        self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr", use_gpu=False)
+        try:
+            self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr", use_gpu=False)
+        except ValueError as err:
+            if "use_gpu" in str(err):
+                self.paddle_ocr = PaddleOCR(use_angle_cls=True, lang="tr")
+            else:
+                raise
 
         # Legacy attributes for backward compatibility
         self.use_easyocr = False
