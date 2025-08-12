@@ -473,17 +473,27 @@ class OCREngine:
         logger.error("Timeout waiting for text: %s", text)
         return False
 
-    def find_word_pair_tesseract(self, img, left_word: str, right_word: str):
+    def find_word_pair_tesseract(self, img, left_word: str, right_word: str, debug_dir: Path):
         df = (
             pytesseract.image_to_data(
                 img, lang=self.tesseract_lang, output_type=pytesseract.Output.DATAFRAME
             ).dropna(subset=["text"])
         )
-        with open("ocr_tesseract_log.txt", "a", encoding="utf-8") as log:
+        debug_dir.mkdir(exist_ok=True)
+        annotated = img.copy()
+        draw = ImageDraw.Draw(annotated)
+        log_path = debug_dir / "log.txt"
+        with open(log_path, "w", encoding="utf-8") as log:
             for row in df.itertuples(index=False):
+                draw.rectangle(
+                    [row.left, row.top, row.left + row.width, row.top + row.height],
+                    outline="red",
+                    width=1,
+                )
                 log.write(
                     f"{row.text}\t{row.conf}\t{row.left},{row.top},{row.width},{row.height}\n"
                 )
+        annotated.save(debug_dir / "annotated.png")
         df["ntext"] = df["text"].map(self._normalize)
         df.sort_values("top", inplace=True)
         line_num = 0
@@ -508,7 +518,7 @@ class OCREngine:
                 return int(x), int(y), int(w), int(h)
         return None
 
-    def find_word_pair_easyocr(self, img, left_word: str, right_word: str):
+    def find_word_pair_easyocr(self, img, left_word: str, right_word: str, debug_dir: Path):
         try:
             results = self.easyocr_reader.readtext(np.array(img))
         except Exception as e:
@@ -516,7 +526,11 @@ class OCREngine:
             results = []
         logger.info(f"EasyOCR found {len(results)} items")
         data = []
-        with open("ocr_easyocr_log.txt", "a", encoding="utf-8") as log:
+        debug_dir.mkdir(exist_ok=True)
+        annotated = img.copy()
+        draw = ImageDraw.Draw(annotated)
+        log_path = debug_dir / "log.txt"
+        with open(log_path, "w", encoding="utf-8") as log:
             for bbox, text, conf in results:
                 x_coords = [pt[0] for pt in bbox]
                 y_coords = [pt[1] for pt in bbox]
@@ -524,6 +538,9 @@ class OCREngine:
                 top = int(min(y_coords))
                 width = int(max(x_coords) - left)
                 height = int(max(y_coords) - top)
+                draw.rectangle(
+                    [left, top, left + width, top + height], outline="red", width=1
+                )
                 log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
                 data.append(
                     {
@@ -535,6 +552,7 @@ class OCREngine:
                         "conf": conf * 100,
                     }
                 )
+        annotated.save(debug_dir / "annotated.png")
         df = pd.DataFrame(data)
         if df.empty:
             return None
@@ -562,12 +580,16 @@ class OCREngine:
                 return int(x), int(y), int(w), int(h)
         return None
 
-    def find_word_pair_paddle(self, img, left_word: str, right_word: str):
+    def find_word_pair_paddle(self, img, left_word: str, right_word: str, debug_dir: Path):
         results = self.paddle_ocr.ocr(np.array(img))
         item_count = sum(len(line) for line in results)
         logger.info(f"PaddleOCR found {item_count} items")
         data = []
-        with open("ocr_paddle_log.txt", "a", encoding="utf-8") as log:
+        debug_dir.mkdir(exist_ok=True)
+        annotated = img.copy()
+        draw = ImageDraw.Draw(annotated)
+        log_path = debug_dir / "log.txt"
+        with open(log_path, "w", encoding="utf-8") as log:
             for line in results:
                 for bbox, (text, conf) in line:
                     x_coords = [pt[0] for pt in bbox]
@@ -576,6 +598,9 @@ class OCREngine:
                     top = int(min(y_coords))
                     width = int(max(x_coords) - left)
                     height = int(max(y_coords) - top)
+                    draw.rectangle(
+                        [left, top, left + width, top + height], outline="red", width=1
+                    )
                     log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
                     data.append(
                         {
@@ -587,6 +612,7 @@ class OCREngine:
                             "conf": conf * 100,
                         }
                     )
+        annotated.save(debug_dir / "annotated.png")
         df = pd.DataFrame(data)
         if df.empty:
             return None
@@ -614,27 +640,36 @@ class OCREngine:
                 return int(x), int(y), int(w), int(h)
         return None
 
-    def find_word_pair_triple_fallback(self, img, left_word: str, right_word: str):
-        logger.info("Trying Tesseract...")
-        result = self.find_word_pair_tesseract(img, left_word, right_word)
-        logger.info(f"Tesseract result: {result}")
-        if result:
-            logger.info("SUCCESS: Tesseract found the pair")
-            return result
+    def find_word_pair_triple_fallback(
+        self,
+        window_rect: Tuple[int, int, int, int],
+        left_word: str = "finans",
+        right_word: str = "izle",
+        max_gap: int = 300,
+        conf_min: float = 30,
+        region_pad: int = 0,
+    ):
+        """Run all three OCR engines and log their outputs separately."""
 
-        logger.info("Trying EasyOCR...")
-        result = self.find_word_pair_easyocr(img, left_word, right_word)
-        logger.info(f"EasyOCR result: {result}")
-        if result:
-            logger.info("SUCCESS: EasyOCR found the pair")
-            return result
+        img_raw = pyautogui.screenshot(region=window_rect)
+        processed = self._preprocess_image(img_raw)
+        results = {}
+        for name, func in [
+            ("tesseract", self.find_word_pair_tesseract),
+            ("easyocr", self.find_word_pair_easyocr),
+            ("paddle", self.find_word_pair_paddle),
+        ]:
+            engine_dir = self.run_dir / name
+            engine_dir.mkdir(exist_ok=True)
+            processed.save(engine_dir / "input.png")
+            logger.info("Trying %s...", name)
+            results[name] = func(processed, left_word, right_word, engine_dir)
+            logger.info("%s result: %s", name, results[name])
 
-        logger.info("Trying PaddleOCR...")
-        result = self.find_word_pair_paddle(img, left_word, right_word)
-        logger.info(f"PaddleOCR result: {result}")
-        if result:
-            logger.info("SUCCESS: PaddleOCR found the pair")
-            return result
+        for engine in ("tesseract", "easyocr", "paddle"):
+            if results.get(engine):
+                logger.info("SUCCESS: %s found the pair", engine)
+                return results[engine]
 
         logger.error("FAILED: All three OCR engines failed")
         return None
