@@ -170,7 +170,8 @@ class PrestonRPA:
                 )
                 window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
             logger.info("Window rect: %s", window_rect)
-            menu_region = (0, 170, window.width, 40)  # y=170-210 arası, menü çubuğu
+            # Precise menu region coordinates from Developer Tools
+            menu_region = (300, 70, 200, 65)
             logger.info(f"Menu region: {menu_region}")
             menu_screenshot = pyautogui.screenshot(region=menu_region)
             menu_screenshot.save("debug_menu_only.png")
