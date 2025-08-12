@@ -167,7 +167,26 @@ class PrestonRPA:
             window = gw.getActiveWindow()
             if not window:
                 raise AssertionError("Preston window not active")
+            logger.info(
+                "Window: left=%d, top=%d, width=%d, height=%d",
+                window.left,
+                window.top,
+                window.width,
+                window.height,
+            )
+            screen_w, screen_h = pyautogui.size()
             window_rect = (window.left, window.top, window.width, window.height)
+            if (
+                window.left < 0
+                or window.top < 0
+                or window.left + window.width > screen_w
+                or window.top + window.height > screen_h
+            ):
+                logger.warning(
+                    "Window rect out of bounds; using screen bounds instead"
+                )
+                window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
+            logger.info("Window rect: %s", window_rect)
             # Menu search screenshots
             self.ocr._screenshot(region=window_rect, step_name="menu_search_before")
             if not self.ocr.click_word_pair(window_rect, "Finans", "İzle"):
