@@ -187,6 +187,23 @@ class PrestonRPA:
             self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
+            deadline = time.time() + 3
+            ok = 0
+            while time.time() < deadline:
+                bbox = self.ocr.find_text_on_screen(
+                    ["İzle", "izle", "Izle"],
+                    region=menu_region,
+                    confidence=0.6,
+                )
+                if bbox:
+                    ok += 1
+                    if ok >= 2:
+                        break
+                else:
+                    ok = 0
+                time.sleep(0.2)
+            else:
+                raise AssertionError("'İzle' görünmedi")
             bbox = self.ocr.find_text_on_screen(
                 ["İzle", "izle", "IZLE"],
                 region=menu_region,
@@ -200,7 +217,11 @@ class PrestonRPA:
                 raise AssertionError("'İzle' menu not found")
             self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
-            if not self.ocr.wait_for_text(UI_TEXTS["banka_hesap_izleme"], timeout=2):
+            if not self.ocr.wait_for_text(
+                ["Banka Hesap İzleme", "Banka hesap izleme"],
+                timeout=2,
+                confidence=0.6,
+            ):
                 raise AssertionError("'Finans - İzle' dropdown did not open")
             self.ocr._screenshot(region=window_rect, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
