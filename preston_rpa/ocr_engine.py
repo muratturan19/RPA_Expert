@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import re
+import unicodedata
 from datetime import datetime
 from typing import Optional, Tuple, Iterable
 from pathlib import Path
@@ -47,25 +48,11 @@ def normalize_tr(s: str) -> str:
     """
 
     s = demojibake(s)
-    mapping = str.maketrans(
-        {
-            "İ": "I",
-            "I": "I",
-            "ı": "i",
-            "Ş": "S",
-            "ş": "s",
-            "Ğ": "G",
-            "ğ": "g",
-            "Ç": "C",
-            "ç": "c",
-            "Ö": "O",
-            "ö": "o",
-            "Ü": "U",
-            "ü": "u",
-        }
-    )
-    s = s.translate(mapping).lower()
-    return re.sub(r"\s+", " ", s).strip()
+    s = unicodedata.normalize("NFKD", s)
+    s = s.translate(str.maketrans("İIıŞşĞğÇçÖöÜü", "IIiSsGgCcOoUu"))
+    s = re.sub(r"[-–—−-]", "-", s)
+    s = re.sub(r"\s+", " ", s).strip().lower()
+    return s
 
 
 def flexible_text_match(a: str, b: str, threshold: float = 0.8) -> bool:
