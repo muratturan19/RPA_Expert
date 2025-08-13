@@ -3,7 +3,8 @@ Configuration settings for Preston RPA system.
 """
 
 # OCR Settings
-OCR_CONFIDENCE = 0.8
+# Accept slightly lower confidence OCR matches to improve robustness
+OCR_CONFIDENCE = 0.6
 # Use Turkish language pack
 OCR_LANGUAGE = "tur"
 # Tesseract configuration string optimized for single-line menu text
