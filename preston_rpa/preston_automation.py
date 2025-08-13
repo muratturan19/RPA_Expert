@@ -76,6 +76,17 @@ class PrestonRPA:
         self.image_matcher = ImageMatcher()
         self.running = True
 
+    def _log_ocr_tokens(self, msg: str, confidence: float) -> None:
+        """Log OCR confidence and the first 20 tokens from the OCR log."""
+        tokens: list[str]
+        try:
+            log_path = self.ocr.run_dir / "ocr_log.txt"
+            with open(log_path, "r", encoding="utf-8") as f:
+                tokens = f.read().split()[:20]
+        except Exception as exc:
+            tokens = [f"log read error: {exc}"]
+        logger.error("%s (confidence=%.2f, tokens=%s)", msg, confidence, tokens)
+
     def start_automation(self, excel_data: List[Dict[str, object]], simulator_path: str):
         """Main automation workflow."""
         logger.info("Starting automation for %d date groups", len(excel_data))
@@ -163,7 +174,7 @@ class PrestonRPA:
             ).save("debug_center_roi.png")
         except Exception:
             pass
-        logger.error("Preston ready check failed; ROI screenshots saved.")
+        self._log_ocr_tokens("Preston ready check failed; ROI screenshots saved.", OCR_CONFIDENCE)
         return False
 
     # The following methods are placeholders demonstrating the sequence.
@@ -221,6 +232,7 @@ class PrestonRPA:
                     ok = 0
                 time.sleep(0.2)
             else:
+                self._log_ocr_tokens("'İzle' görünmedi", 0.6)
                 raise AssertionError("'İzle' görünmedi")
             bbox = self.ocr.find_text_on_screen(
                 ["İzle", "izle", "IZLE"],
@@ -232,6 +244,7 @@ class PrestonRPA:
                 pyautogui.click(x + w // 2, y + h // 2)
                 logger.info("Successfully clicked İzle menu")
             else:
+                self._log_ocr_tokens("'İzle' menu not found", OCR_CONFIDENCE)
                 raise AssertionError("'İzle' menu not found")
             self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
@@ -240,6 +253,7 @@ class PrestonRPA:
                 timeout=2,
                 confidence=0.6,
             ):
+                self._log_ocr_tokens("wait_for_text failed for 'Banka Hesap İzleme'", 0.6)
                 raise AssertionError("'Finans - İzle' dropdown did not open")
             self.ocr._screenshot(region=window_rect, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
