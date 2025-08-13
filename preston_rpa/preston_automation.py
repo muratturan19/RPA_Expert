@@ -295,8 +295,8 @@ class PrestonRPA:
             else:
                 self._log_ocr_tokens("'İzle' menu not found", OCR_CONFIDENCE)
                 raise AssertionError("'İzle' menu not found")
-            self.ocr.capture_image(region=menu_region, step_name="menu_search_after")
-            self.ocr._screenshot(region=window_rect, step_name="menu_after_dropdown")
+            self.ocr.capture_image(region=dropdown_region, step_name="menu_search_after")
+            self.ocr._screenshot(region=dropdown_region, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
             # Placeholder for more navigation steps...
 
