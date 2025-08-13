@@ -196,7 +196,7 @@ class PrestonRPA:
                 window.height,
             )
             screen_w, screen_h = pyautogui.size()
-            window_rect = (0, 0, window.width, window.height)
+            window_rect = (window.left, window.top, window.width, window.height)
             if (
                 window.left < 0
                 or window.top < 0
@@ -204,12 +204,21 @@ class PrestonRPA:
                 or window.top + window.height > screen_h
             ):
                 logger.warning(
-                    "Window rect out of bounds; using screen bounds instead"
+                    "Window rect out of bounds; clipping to screen bounds"
                 )
-                window_rect = (0, 0, min(window.width, screen_w), min(window.height, screen_h))
+                left = max(0, window.left)
+                top = max(0, window.top)
+                right = min(window.left + window.width, screen_w)
+                bottom = min(window.top + window.height, screen_h)
+                window_rect = (left, top, right - left, bottom - top)
             logger.info("Window rect: %s", window_rect)
             # Precise menu region covering the "Finans - İzle" menu
-            menu_region = (300, 100, 500, 200)
+            menu_region = (
+                window_rect[0] + 300,
+                window_rect[1] + 100,
+                500,
+                200,
+            )
             logger.info(f"Menu region: {menu_region}")
             menu_screenshot = pyautogui.screenshot(region=menu_region)
             menu_screenshot.save("debug_menu_only.png")
