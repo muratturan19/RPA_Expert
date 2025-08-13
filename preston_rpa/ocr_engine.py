@@ -402,7 +402,11 @@ class OCREngine:
         for row in df.itertuples(index=False):
             if not str(row.text).strip():
                 continue
-            key = (row.page_num, row.block_num, row.par_num, row.line_num)
+            page_num = getattr(row, "page_num", 0)
+            block_num = getattr(row, "block_num", 0)
+            par_num = getattr(row, "par_num", 0)
+            line_num = getattr(row, "line_num", 0)
+            key = (page_num, block_num, par_num, line_num)
             line = lines.setdefault(
                 key,
                 {"words": [], "left": [], "top": [], "right": [], "bottom": []},
