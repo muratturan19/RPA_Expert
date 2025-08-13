@@ -12,7 +12,14 @@ from pathlib import Path
 import pyautogui
 import pygetwindow as gw
 
-from .config import CLICK_DELAY, FORM_FILL_DELAY, UI_TEXTS, BANK_CODES, CARI_CODES
+from .config import (
+    CLICK_DELAY,
+    FORM_FILL_DELAY,
+    UI_TEXTS,
+    BANK_CODES,
+    CARI_CODES,
+    OCR_CONFIDENCE,
+)
 from .logger import get_logger
 from .ocr_engine import OCREngine
 from .image_matcher import ImageMatcher
@@ -181,7 +188,9 @@ class PrestonRPA:
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
             bbox = self.ocr.find_text_on_screen(
-                ["İzle", "izle", "IZLE"], region=menu_region
+                ["İzle", "izle", "IZLE"],
+                region=menu_region,
+                confidence=OCR_CONFIDENCE,
             )
             if bbox:
                 x, y, w, h = bbox
