@@ -238,6 +238,12 @@ class PrestonRPA:
                 int(500 * scale_x),
                 int(200 * scale_y),
             )
+            dropdown_region = (
+                menu_region[0],
+                menu_region[1] + menu_region[3],
+                int(500 * scale_x),
+                int(300 * scale_y),
+            )
             logger.info("Menu region: %s", menu_region)
             menu_screenshot = pyautogui.screenshot(region=menu_region)
             menu_screenshot.save("debug_menu_only.png")
@@ -282,11 +288,12 @@ class PrestonRPA:
             self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(
-                ["Banka Hesap İzleme", "Banka hesap izleme"],
+                ["Yeni", "yeni", "YENİ"],
                 timeout=2,
+                region=dropdown_region,
                 confidence=0.6,
             ):
-                self._log_ocr_tokens("wait_for_text failed for 'Banka Hesap İzleme'", 0.6)
+                self._log_ocr_tokens("wait_for_text failed for 'Yeni' in İzle dropdown", 0.6)
                 raise AssertionError("'Finans - İzle' dropdown did not open")
             self.ocr._screenshot(region=window_rect, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
