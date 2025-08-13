@@ -369,6 +369,7 @@ class OCREngine:
         normalize: bool,
         region_pad: int,
         use_easyocr: bool,
+        found_texts: Optional[list[str]] = None,
     ) -> Optional[Tuple[int, int, int, int]]:
         orig_use_easyocr = self.use_easyocr
         orig_reader = self.reader
@@ -406,6 +407,8 @@ class OCREngine:
             line["bottom"].append(top + height)
         for line in lines.values():
             line_text = " ".join(line["words"])
+            if found_texts is not None:
+                found_texts.append(line_text)
             line_norm = (
                 self._normalize(line_text) if normalize else line_text.casefold()
             )
@@ -432,6 +435,7 @@ class OCREngine:
         confidence: float = OCR_CONFIDENCE,
         normalize: bool = True,
         region_pad: int = 0,
+        texts_out: Optional[list[str]] = None,
     ) -> Optional[Tuple[int, int, int, int]]:
         """Find text coordinates using EasyOCR first, then fall back to Tesseract."""
 
@@ -448,6 +452,7 @@ class OCREngine:
                     normalize,
                     region_pad,
                     use_easyocr,
+                    texts_out,
                 )
             except Exception as exc:
                 logger.exception("%s engine failed: %s", name, exc)
@@ -481,12 +486,19 @@ class OCREngine:
         return False
 
     def wait_for_text(
-        self, text: str, timeout: float = 10, region=None, region_pad: int = 0
+        self,
+        text: Iterable[str] | str,
+        timeout: float = 10,
+        region=None,
+        region_pad: int = 0,
+        confidence: float = OCR_CONFIDENCE,
     ) -> bool:
         """Wait until text appears on screen."""
         end_time = time.time() + timeout
         while time.time() < end_time:
-            if self.find_text_on_screen(text, region=region, region_pad=region_pad):
+            if self.find_text_on_screen(
+                text, region=region, region_pad=region_pad, confidence=confidence
+            ):
                 return True
             time.sleep(0.5)
         logger.error("Timeout waiting for text: %s", text)
