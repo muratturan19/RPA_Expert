@@ -249,7 +249,7 @@ class PrestonRPA:
             menu_screenshot.save("debug_menu_only.png")
             self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
             # Menu search screenshots
-            self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
+            self.ocr.capture_image(region=menu_region, step_name="menu_search_before")
             deadline = time.time() + 5
             ok = 0
             texts_out: list[str] = []
@@ -285,7 +285,7 @@ class PrestonRPA:
             else:
                 self._log_ocr_tokens("'İzle' menu not found", OCR_CONFIDENCE)
                 raise AssertionError("'İzle' menu not found")
-            self.ocr._screenshot(region=menu_region, step_name="menu_search_after")
+            self.ocr.capture_image(region=menu_region, step_name="menu_search_after")
             time.sleep(CLICK_DELAY)
             if not self.ocr.wait_for_text(
                 ["Yeni", "yeni", "YENİ"],

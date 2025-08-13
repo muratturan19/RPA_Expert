@@ -118,6 +118,52 @@ class OCREngine:
         except Exception as exc:
             logger.error("Failed to save debug image: %s", exc)
 
+    def capture_image(self, region=None, step_name: str = "step", region_pad: int = 0):
+        """Capture a screenshot and save the raw image without running OCR.
+
+        Parameters
+        ----------
+        region:
+            Optional tuple ``(x, y, width, height)`` describing the region to
+            capture.  If omitted, the full screen is captured.
+        step_name:
+            Descriptive label used when saving the image to the debug run
+            directory.
+        region_pad:
+            Optional padding applied uniformly to all sides of ``region``
+            before cropping.
+
+        Returns
+        -------
+        Image | None
+            The captured PIL image or ``None`` if the capture fails.
+        """
+
+        try:
+            self.step += 1
+            step_label = f"step{self.step:02d}_{step_name}"
+
+            windows = gw.getWindowsWithTitle("Preston")
+            if windows:
+                windows[0].activate()
+                time.sleep(0.3)
+
+            img = pyautogui.screenshot()
+            if region:
+                x, y, w, h = region
+                if region_pad:
+                    x = max(0, x - region_pad)
+                    y = max(0, y - region_pad)
+                    w += region_pad * 2
+                    h += region_pad * 2
+                img = img.crop((x, y, x + w, y + h))
+
+            img.save(self.run_dir / f"{step_label}_raw.png")
+            return img
+        except Exception as exc:
+            logger.error("Capture image failed: %s", exc)
+            return None
+
     def _screenshot(self, region=None, step_name: str = "step", region_pad: int = 0):
         try:
             self.step += 1
