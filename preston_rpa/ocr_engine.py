@@ -30,6 +30,7 @@ from .config import (
     OCR_FUZZY_THRESHOLD,
 )
 from .logger import get_logger
+from .utils import xywh_to_ltrb
 
 logger = get_logger(__name__)
 
@@ -160,7 +161,7 @@ class OCREngine:
                     y = max(0, y - region_pad)
                     w += region_pad * 2
                     h += region_pad * 2
-                img = img.crop((x, y, x + w, y + h))
+                img = img.crop(xywh_to_ltrb((x, y, w, h)))
 
             img.save(self.run_dir / f"{step_label}_raw.png")
             return img
@@ -187,7 +188,7 @@ class OCREngine:
                     y = max(0, y - region_pad)
                     w += region_pad * 2
                     h += region_pad * 2
-                raw_img = full_img.crop((x, y, x + w, y + h))
+                raw_img = full_img.crop(xywh_to_ltrb((x, y, w, h)))
             else:
                 raw_img = full_img
 
@@ -285,7 +286,7 @@ class OCREngine:
             overlay = full_img.copy()
             if region:
                 draw = ImageDraw.Draw(overlay)
-                draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
+                draw.rectangle(xywh_to_ltrb((x, y, w, h)), outline="red", width=2)
             overlay.save(self.run_dir / f"{step_label}_search_region.png")
 
             region_used = (x, y, w, h) if region else None
@@ -614,7 +615,7 @@ class OCREngine:
         with open(log_path, "w", encoding="utf-8") as log:
             for row in df.itertuples(index=False):
                 draw.rectangle(
-                    [row.left, row.top, row.left + row.width, row.top + row.height],
+                    xywh_to_ltrb((row.left, row.top, row.width, row.height)),
                     outline="red",
                     width=1,
                 )
@@ -677,7 +678,7 @@ class OCREngine:
                 width = int(max(x_coords) - left)
                 height = int(max(y_coords) - top)
                 draw.rectangle(
-                    [left, top, left + width, top + height], outline="red", width=1
+                    xywh_to_ltrb((left, top, width, height)), outline="red", width=1
                 )
                 log.write(f"{text}\t{conf}\t{left},{top},{width},{height}\n")
                 data.append(

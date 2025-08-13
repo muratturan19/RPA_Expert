@@ -24,6 +24,7 @@ from .config import (
 from .logger import get_logger
 from .ocr_engine import OCREngine
 from .image_matcher import ImageMatcher
+from .utils import xywh_to_ltrb
 
 logger = get_logger(__name__)
 
@@ -157,22 +158,10 @@ class PrestonRPA:
             time.sleep(0.25)
 
         try:
-            ImageGrab.grab(
-                bbox=(
-                    menu_left,
-                    menu_top,
-                    menu_left + menu_width,
-                    menu_top + menu_height,
-                )
-            ).save("debug_menu_roi.png")
-            ImageGrab.grab(
-                bbox=(
-                    center_left,
-                    center_top,
-                    center_left + center_width,
-                    center_top + center_height,
-                )
-            ).save("debug_center_roi.png")
+            ImageGrab.grab(bbox=xywh_to_ltrb(menu_roi)).save("debug_menu_roi.png")
+            ImageGrab.grab(bbox=xywh_to_ltrb(center_roi)).save(
+                "debug_center_roi.png"
+            )
         except Exception:
             pass
         self._log_ocr_tokens("Preston ready check failed; ROI screenshots saved.", OCR_CONFIDENCE)
