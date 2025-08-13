@@ -34,6 +34,10 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
+class ScreenshotError(Exception):
+    """Raised when a screenshot cannot be captured."""
+
+
 def demojibake(s: str) -> str:
     """Fix mojibake by re-decoding Latin-1 bytes as UTF-8."""
     try:
@@ -292,7 +296,7 @@ class OCREngine:
             return processed_img, df, step_label, region_used
         except Exception as exc:
             logger.error("Screenshot failed: %s", exc)
-            return None, pd.DataFrame(), "", None
+            raise ScreenshotError("Unable to capture screenshot") from exc
 
     @staticmethod
     def _preprocess_image(img: Image.Image) -> Image.Image:
@@ -520,6 +524,9 @@ class OCREngine:
                     use_easyocr,
                     texts_out,
                 )
+            except ScreenshotError:
+                logger.error("Screenshot failed during %s engine", name)
+                raise
             except Exception as exc:
                 logger.exception("%s engine failed: %s", name, exc)
                 bbox = None
@@ -562,10 +569,16 @@ class OCREngine:
         """Wait until text appears on screen."""
         end_time = time.time() + timeout
         while time.time() < end_time:
-            if self.find_text_on_screen(
-                text, region=region, region_pad=region_pad, confidence=confidence
-            ):
-                return True
+            try:
+                if self.find_text_on_screen(
+                    text, region=region, region_pad=region_pad, confidence=confidence
+                ):
+                    return True
+            except ScreenshotError as exc:
+                logger.error(
+                    "Screenshot failed while waiting for text '%s': %s", text, exc
+                )
+                raise
             time.sleep(0.5)
         logger.error("Timeout waiting for text: %s", text)
         return False
