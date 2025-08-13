@@ -186,6 +186,8 @@ class PrestonRPA:
             )
             # Navigation Phase
             window = gw.getActiveWindow()
+            window.activate()
+            time.sleep(0.5)
             if not window:
                 raise AssertionError("Preston window not active")
             logger.info(
