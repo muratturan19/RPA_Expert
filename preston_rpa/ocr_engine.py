@@ -169,15 +169,28 @@ class OCREngine:
                         }
                     )
                     text_lines.append(text)
-                df = pd.DataFrame(data)
-                df.sort_values("top", inplace=True)
-                line_num = 0
-                last_top = -9999
-                for idx, row in df.iterrows():
-                    if row.top - last_top > 10:
-                        line_num += 1
-                        last_top = row.top
-                    df.at[idx, "line_num"] = line_num
+                if not data:
+                    df = pd.DataFrame(
+                        columns=[
+                            "left",
+                            "top",
+                            "width",
+                            "height",
+                            "text",
+                            "conf",
+                            "line_num",
+                        ]
+                    )
+                else:
+                    df = pd.DataFrame(data)
+                    df.sort_values("top", inplace=True)
+                    line_num = 0
+                    last_top = -9999
+                    for idx, row in df.iterrows():
+                        if row.top - last_top > 10:
+                            line_num += 1
+                            last_top = row.top
+                        df.at[idx, "line_num"] = line_num
                 ocr_text = "\n".join(text_lines)
             else:
                 ocr_text = pytesseract.image_to_string(
