@@ -120,8 +120,12 @@ class PrestonRPA:
                     pass
 
             l, t, r, b = ch.BoundingRectangle
-            menu_roi = (l + 8, t + 170, r - 8, t + 220)
-            center_roi = (l + 200, t + 260, r - 200, t + 420)
+            menu_left, menu_top = l + 8, t + 170
+            menu_width, menu_height = (r - 8) - menu_left, (t + 220) - menu_top
+            menu_roi = (menu_left, menu_top, menu_width, menu_height)
+            center_left, center_top = l + 200, t + 260
+            center_width, center_height = (r - 200) - center_left, (t + 420) - center_top
+            center_roi = (center_left, center_top, center_width, center_height)
             window_rect = (l, t, r - l, b - t)
 
             found_izle = self.ocr.find_text_on_screen(
@@ -141,8 +145,22 @@ class PrestonRPA:
             time.sleep(0.25)
 
         try:
-            ImageGrab.grab(bbox=menu_roi).save("debug_menu_roi.png")
-            ImageGrab.grab(bbox=center_roi).save("debug_center_roi.png")
+            ImageGrab.grab(
+                bbox=(
+                    menu_left,
+                    menu_top,
+                    menu_left + menu_width,
+                    menu_top + menu_height,
+                )
+            ).save("debug_menu_roi.png")
+            ImageGrab.grab(
+                bbox=(
+                    center_left,
+                    center_top,
+                    center_left + center_width,
+                    center_top + center_height,
+                )
+            ).save("debug_center_roi.png")
         except Exception:
             pass
         logger.error("Preston ready check failed; ROI screenshots saved.")
