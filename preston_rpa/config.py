@@ -32,7 +32,7 @@ UI_TEXTS = {
         "FINANS - İZLE",
         "Finans - Izle",
     ],
-    "banka_hesap_izleme": "Banka hesap izleme",
+    "banka_hesap_izleme": ["Banka hesap izleme", "banka hesap izleme"],
     "tamam_button": "Tamam",
     "yeni_button": "Yeni",
     "kaydet_button": "Kaydet",

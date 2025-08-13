@@ -272,15 +272,33 @@ class PrestonRPA:
                 logger.info("Click at %s", (x_click, y_click))
                 logger.info("Successfully clicked İzle menu")
                 if not self.ocr.wait_for_text(
-                    ["Yeni", "yeni", "YENİ"],
+                    UI_TEXTS["banka_hesap_izleme"],
                     timeout=2,
                     region=dropdown_region,
                     confidence=0.6,
                 ):
                     self._log_ocr_tokens(
-                        "wait_for_text failed for 'Yeni' in İzle dropdown", 0.6
+                        "wait_for_text failed for 'Banka hesap izleme' in İzle dropdown",
+                        0.6,
                     )
-                    raise AssertionError("'Finans - İzle' dropdown did not open")
+                    raise AssertionError(
+                        "'Finans - İzle' dropdown did not open or 'Banka hesap izleme' not found"
+                    )
+                bbox_dropdown = self.ocr.find_text_on_screen(
+                    UI_TEXTS["banka_hesap_izleme"],
+                    region=dropdown_region,
+                    confidence=OCR_CONFIDENCE,
+                )
+                if bbox_dropdown:
+                    dx, dy, dw, dh = bbox_dropdown
+                    pyautogui.click(dx + dw // 2, dy + dh // 2)
+                    logger.info("Clicked 'Banka hesap izleme' option")
+                else:
+                    self._log_ocr_tokens(
+                        "'Banka hesap izleme' option not found in dropdown",
+                        OCR_CONFIDENCE,
+                    )
+                    raise AssertionError("'Banka hesap izleme' option not found")
             else:
                 self._log_ocr_tokens("'İzle' menu not found", OCR_CONFIDENCE)
                 raise AssertionError("'İzle' menu not found")
