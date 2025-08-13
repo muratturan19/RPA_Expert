@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import re
 import unicodedata
+import warnings
 from datetime import datetime
 from typing import Optional, Tuple, Iterable
 from pathlib import Path
@@ -19,6 +20,8 @@ import cv2
 from PIL import Image, ImageDraw
 
 import easyocr
+
+warnings.filterwarnings("ignore", message=".*pin_memory.*")
 
 from .config import (
     OCR_CONFIDENCE,
