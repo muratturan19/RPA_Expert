@@ -9,6 +9,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
+import ctypes
 import pyautogui
 import pygetwindow as gw
 
@@ -198,30 +199,46 @@ class PrestonRPA:
                 window.height,
             )
             screen_w, screen_h = pyautogui.size()
-            window_rect = (window.left, window.top, window.width, window.height)
+            try:
+                user32 = ctypes.windll.user32
+                os_w = user32.GetSystemMetrics(0)
+                os_h = user32.GetSystemMetrics(1)
+                scale_x = screen_w / os_w if os_w else 1
+                scale_y = screen_h / os_h if os_h else 1
+            except Exception:
+                scale_x = scale_y = 1
+
+            window_rect = (
+                int(window.left * scale_x),
+                int(window.top * scale_y),
+                int(window.width * scale_x),
+                int(window.height * scale_y),
+            )
             if (
-                window.left < 0
-                or window.top < 0
-                or window.left + window.width > screen_w
-                or window.top + window.height > screen_h
+                window_rect[0] < 0
+                or window_rect[1] < 0
+                or window_rect[0] + window_rect[2] > screen_w
+                or window_rect[1] + window_rect[3] > screen_h
             ):
                 logger.warning(
                     "Window rect out of bounds; clipping to screen bounds"
                 )
-                left = max(0, window.left)
-                top = max(0, window.top)
-                right = min(window.left + window.width, screen_w)
-                bottom = min(window.top + window.height, screen_h)
+                left = max(0, window_rect[0])
+                top = max(0, window_rect[1])
+                right = min(window_rect[0] + window_rect[2], screen_w)
+                bottom = min(window_rect[1] + window_rect[3], screen_h)
                 window_rect = (left, top, right - left, bottom - top)
             logger.info("Window rect: %s", window_rect)
+            offset_x = int(window.width * 0.15 * scale_x)
+            offset_y = int(window.height * 0.1 * scale_y)
             # Precise menu region covering the "Finans - İzle" menu
             menu_region = (
-                window_rect[0] + 300,
-                window_rect[1] + 100,
-                500,
-                200,
+                window_rect[0] + offset_x,
+                window_rect[1] + offset_y,
+                int(500 * scale_x),
+                int(200 * scale_y),
             )
-            logger.info(f"Menu region: {menu_region}")
+            logger.info("Menu region: %s", menu_region)
             menu_screenshot = pyautogui.screenshot(region=menu_region)
             menu_screenshot.save("debug_menu_only.png")
             self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
@@ -255,7 +272,9 @@ class PrestonRPA:
             )
             if bbox:
                 x, y, w, h = bbox
-                pyautogui.click(x + w // 2, y + h // 2)
+                x_click, y_click = x + w // 2, y + h // 2
+                pyautogui.click(x_click, y_click)
+                logger.info("Click at %s", (x_click, y_click))
                 logger.info("Successfully clicked İzle menu")
             else:
                 self._log_ocr_tokens("'İzle' menu not found", OCR_CONFIDENCE)
