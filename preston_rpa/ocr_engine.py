@@ -246,14 +246,12 @@ class OCREngine:
                 ocr_text = pytesseract.image_to_string(
                     processed_img, lang="tur+eng", config=OCR_TESSERACT_CONFIG
                 )
-                df = (
-                    pytesseract.image_to_data(
-                        processed_img,
-                        lang="tur+eng",
-                        config=OCR_TESSERACT_CONFIG,
-                        output_type=pytesseract.Output.DATAFRAME,
-                    ).dropna(subset=["text"])
-                )
+                df = pytesseract.image_to_data(
+                    processed_img,
+                    lang="tur+eng",
+                    config=OCR_TESSERACT_CONFIG,
+                    output_type=pytesseract.Output.DATAFRAME,
+                ).dropna(subset=["text"])
 
             with open(
                 self.run_dir / f"{step_label}_ocr_result.txt", "w", encoding="utf-8"
@@ -287,9 +285,7 @@ class OCREngine:
             overlay = full_img.copy()
             if region:
                 draw = ImageDraw.Draw(overlay)
-                draw.rectangle(
-                    [x, y, x + w, y + h], outline="red", width=2
-                )
+                draw.rectangle([x, y, x + w, y + h], outline="red", width=2)
             overlay.save(self.run_dir / f"{step_label}_search_region.png")
 
             region_used = (x, y, w, h) if region else None
@@ -303,9 +299,7 @@ class OCREngine:
         gray = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2GRAY)
         gray = cv2.resize(gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
-        _, thresh = cv2.threshold(
-            gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         kernel = np.ones((3, 3), np.uint8)
         opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
         closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel)
@@ -427,7 +421,9 @@ class OCREngine:
             pyautogui.click(x + w // 2, y + h // 2)
             time.sleep(0.1)
             return True
-        logger.error("Word pair '%s' and '%s' not found on screen", left_word, right_word)
+        logger.error(
+            "Word pair '%s' and '%s' not found on screen", left_word, right_word
+        )
         return False
 
     def _find_text_engine(
@@ -454,6 +450,20 @@ class OCREngine:
             self.reader = orig_reader
         if img is None or df.empty:
             return None
+
+        # Determine scale factors between the processed image fed to the OCR
+        # engine and the original region so that OCR coordinates can be mapped
+        # back to screen coordinates. ``used_region`` contains the original
+        # region dimensions (including any padding) in screen space.
+        if used_region:
+            region_w, region_h = used_region[2], used_region[3]
+            scale_x = img.width / region_w if region_w else 1
+            scale_y = img.height / region_h if region_h else 1
+        else:
+            screen_w, screen_h = pyautogui.size()
+            scale_x = img.width / screen_w if screen_w else 1
+            scale_y = img.height / screen_h if screen_h else 1
+
         df["conf"] = df["conf"].astype(float)
         df = df[df["conf"] >= confidence * 100]
         lines: dict = {}
@@ -489,6 +499,14 @@ class OCREngine:
                     y = min(line["top"])
                     w = max(line["right"]) - x
                     h = max(line["bottom"]) - y
+
+                    # Map bounding box from processed image coordinates back
+                    # to the original screenshot region.
+                    x = int(x / scale_x)
+                    y = int(y / scale_y)
+                    w = int(w / scale_x)
+                    h = int(h / scale_y)
+
                     if used_region:
                         x += used_region[0]
                         y += used_region[1]
@@ -583,12 +601,12 @@ class OCREngine:
         logger.error("Timeout waiting for text: %s", text)
         return False
 
-    def find_word_pair_tesseract(self, img, left_word: str, right_word: str, debug_dir: Path):
-        df = (
-            pytesseract.image_to_data(
-                img, lang=self.tesseract_lang, output_type=pytesseract.Output.DATAFRAME
-            ).dropna(subset=["text"])
-        )
+    def find_word_pair_tesseract(
+        self, img, left_word: str, right_word: str, debug_dir: Path
+    ):
+        df = pytesseract.image_to_data(
+            img, lang=self.tesseract_lang, output_type=pytesseract.Output.DATAFRAME
+        ).dropna(subset=["text"])
         debug_dir.mkdir(exist_ok=True)
         annotated = img.copy()
         draw = ImageDraw.Draw(annotated)
@@ -631,9 +649,13 @@ class OCREngine:
                 return int(x), int(y), int(w), int(h)
         return None
 
-    def find_word_pair_easyocr(self, img, left_word: str, right_word: str, debug_dir: Path):
+    def find_word_pair_easyocr(
+        self, img, left_word: str, right_word: str, debug_dir: Path
+    ):
         if self.easyocr_reader is None:
-            logger.warning("EasyOCR reader not available, skipping EasyOCR word pair search")
+            logger.warning(
+                "EasyOCR reader not available, skipping EasyOCR word pair search"
+            )
             return None
         try:
             results = self.easyocr_reader.readtext(np.array(img))
@@ -698,4 +720,3 @@ class OCREngine:
                 h = max(L.top + L.height, R.top + R.height) - y
                 return int(x), int(y), int(w), int(h)
         return None
-
