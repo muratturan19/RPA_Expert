@@ -89,7 +89,11 @@ class OCREngine:
         self.lang = OCR_LANGUAGE
         self.debug = debug
         self.tesseract_lang = "tur"
-        self.easyocr_reader = easyocr.Reader(["tr", "en"], gpu=False)
+        try:
+            self.easyocr_reader = easyocr.Reader(["tr", "en"], gpu=False)
+        except Exception as exc:
+            logger.warning("EasyOCR initialization failed: %s", exc)
+            self.easyocr_reader = None
 
         # Legacy attributes for backward compatibility
         self.use_easyocr = False
@@ -373,8 +377,8 @@ class OCREngine:
     ) -> Optional[Tuple[int, int, int, int]]:
         orig_use_easyocr = self.use_easyocr
         orig_reader = self.reader
-        self.use_easyocr = use_easyocr
-        self.reader = self.easyocr_reader if use_easyocr else None
+        self.use_easyocr = use_easyocr and self.easyocr_reader is not None
+        self.reader = self.easyocr_reader if self.use_easyocr else None
         try:
             img, df, _, used_region = self._screenshot(
                 region=region, step_name="find_text", region_pad=region_pad
@@ -553,6 +557,9 @@ class OCREngine:
         return None
 
     def find_word_pair_easyocr(self, img, left_word: str, right_word: str, debug_dir: Path):
+        if self.easyocr_reader is None:
+            logger.warning("EasyOCR reader not available, skipping EasyOCR word pair search")
+            return None
         try:
             results = self.easyocr_reader.readtext(np.array(img))
         except Exception as e:
