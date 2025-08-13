@@ -216,22 +216,25 @@ class PrestonRPA:
             self.ocr._save_debug_image(menu_screenshot, "debug_menu_region")
             # Menu search screenshots
             self.ocr._screenshot(region=menu_region, step_name="menu_search_before")
-            deadline = time.time() + 3
+            deadline = time.time() + 5
             ok = 0
+            texts_out: list[str] = []
             while time.time() < deadline:
                 bbox = self.ocr.find_text_on_screen(
                     ["İzle", "izle", "Izle"],
                     region=menu_region,
                     confidence=0.6,
+                    texts_out=texts_out,
                 )
                 if bbox:
                     ok += 1
-                    if ok >= 2:
+                    if ok >= 1:
                         break
                 else:
                     ok = 0
                 time.sleep(0.2)
             else:
+                logger.debug("OCR texts in menu region: %s", texts_out)
                 self._log_ocr_tokens("'İzle' görünmedi", 0.6)
                 raise AssertionError("'İzle' görünmedi")
             bbox = self.ocr.find_text_on_screen(
