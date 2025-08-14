@@ -309,15 +309,15 @@ class PrestonRPA:
 
             # Account Selection
             # In real application, we would type account number and confirm dialogs
-            logger.debug("Selecting account %s", data_entry["hesap_no"])
+            logger.info("Selecting account %s (placeholder)", data_entry["hesap_no"])
 
             # Date Setup
-            logger.debug("Setting date range %s", data_entry["tarih"])
+            logger.info("Setting date range %s (placeholder)", data_entry["tarih"])
 
             # Form Creation and Data Entry
-            logger.debug("Entering amount %.2f", data_entry["toplam_tutar"])
+            logger.info("Entering amount %.2f (placeholder)", data_entry["toplam_tutar"])
             time.sleep(FORM_FILL_DELAY)
-            logger.debug("Entering description %s", data_entry["aciklama"])
+            logger.info("Entering description %s (placeholder)", data_entry["aciklama"])
             time.sleep(FORM_FILL_DELAY)
 
             logger.info("Entry for %s completed", data_entry["tarih"])
