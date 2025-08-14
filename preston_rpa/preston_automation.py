@@ -15,11 +15,11 @@ import pygetwindow as gw
 
 from .config import (
     CLICK_DELAY,
-    FORM_FILL_DELAY,
     UI_TEXTS,
     BANK_CODES,
     CARI_CODES,
     OCR_CONFIDENCE,
+    MODAL_WAIT_TIMEOUT,
 )
 from .logger import get_logger
 from .ocr_engine import OCREngine
@@ -305,21 +305,167 @@ class PrestonRPA:
             self.ocr.capture_image(region=dropdown_region, step_name="menu_search_after")
             self.ocr._screenshot(region=dropdown_region, step_name="menu_after_dropdown")
             time.sleep(CLICK_DELAY)
-            # Placeholder for more navigation steps...
 
-            # Account Selection
-            # In real application, we would type account number and confirm dialogs
-            logger.info("Selecting account %s (placeholder)", data_entry["hesap_no"])
+            # Click BANKA ribbon icon to open Banka İzleme popup
+            bank_region = (
+                window_rect[0] + int(40 * scale_x),
+                window_rect[1] + int(80 * scale_y),
+                int(300 * scale_x),
+                int(180 * scale_y),
+            )
+            if not self.ocr.wait_for_text(
+                ["Banka", "BANKA"],
+                timeout=5,
+                region=bank_region,
+                confidence=0.5,
+            ):
+                self._log_ocr_tokens("'Banka' icon not found", 0.5)
+                raise AssertionError("'Banka' icon not found")
+            banka_bbox = self.ocr.find_text_on_screen(
+                ["Banka", "BANKA"], region=bank_region, confidence=OCR_CONFIDENCE
+            )
+            if banka_bbox:
+                bx, by, bw, bh = banka_bbox
+                pyautogui.click(bx + bw // 2, by + bh // 2)
+                logger.info("Clicked BANKA icon")
+            else:
+                self._log_ocr_tokens("'Banka' icon not clickable", OCR_CONFIDENCE)
+                raise AssertionError("'Banka' icon not clickable")
 
-            # Date Setup
-            logger.info("Setting date range %s (placeholder)", data_entry["tarih"])
+            # Handle Banka İzleme popup
+            popup_region = (
+                window_rect[0] + int(200 * scale_x),
+                window_rect[1] + int(150 * scale_y),
+                int(600 * scale_x),
+                int(400 * scale_y),
+            )
+            if not self.ocr.wait_for_text(
+                ["Banka İzleme", "Banka izleme"],
+                timeout=MODAL_WAIT_TIMEOUT,
+                region=popup_region,
+                confidence=0.5,
+            ):
+                self._log_ocr_tokens("Banka İzleme popup did not appear", 0.5)
+                raise AssertionError("Banka İzleme popup did not appear")
 
-            # Form Creation and Data Entry
-            logger.info("Entering amount %.2f (placeholder)", data_entry["toplam_tutar"])
-            time.sleep(FORM_FILL_DELAY)
-            logger.info("Entering description %s (placeholder)", data_entry["aciklama"])
-            time.sleep(FORM_FILL_DELAY)
+            dropdown_bbox = self.ocr.find_text_on_screen(
+                UI_TEXTS["banka_hesap_izleme"], region=popup_region, confidence=0.5
+            )
+            if not dropdown_bbox:
+                self._log_ocr_tokens(
+                    "Dropdown for 'Banka hesap izleme' not found", 0.5
+                )
+                raise AssertionError("Dropdown for 'Banka hesap izleme' not found")
+            dx, dy, dw, dh = dropdown_bbox
+            pyautogui.click(dx + dw // 2, dy + dh // 2)
+            time.sleep(CLICK_DELAY)
+            dropdown_list_region = (
+                dx,
+                dy + dh,
+                dw,
+                int(300 * scale_y),
+            )
+            if not self.ocr.wait_for_text(
+                UI_TEXTS["banka_hesap_izleme"],
+                timeout=5,
+                region=dropdown_list_region,
+                confidence=0.5,
+            ):
+                self._log_ocr_tokens(
+                    "'Banka hesap izleme' option not listed", 0.5
+                )
+                raise AssertionError("'Banka hesap izleme' option not listed")
+            option_bbox = self.ocr.find_text_on_screen(
+                UI_TEXTS["banka_hesap_izleme"],
+                region=dropdown_list_region,
+                confidence=OCR_CONFIDENCE,
+            )
+            if option_bbox:
+                ox, oy, ow, oh = option_bbox
+                pyautogui.click(ox + ow // 2, oy + oh // 2)
+                logger.info("Selected 'Banka hesap izleme' from dropdown")
+            else:
+                self._log_ocr_tokens(
+                    "'Banka hesap izleme' option not clickable", OCR_CONFIDENCE
+                )
+                raise AssertionError("'Banka hesap izleme' option not clickable")
 
-            logger.info("Entry for %s completed", data_entry["tarih"])
+            if not self.ocr.click_text(
+                UI_TEXTS["tamam_button"], region=popup_region
+            ):
+                self._log_ocr_tokens(
+                    "'Tamam' button not found in Banka İzleme popup",
+                    OCR_CONFIDENCE,
+                )
+                raise AssertionError(
+                    "'Tamam' button not found in Banka İzleme popup"
+                )
+            time.sleep(CLICK_DELAY)
+
+            # Click "..." button next to Hesap No
+            sidebar_region = (
+                window_rect[0] + int(40 * scale_x),
+                window_rect[1] + int(230 * scale_y),
+                int(350 * scale_x),
+                int(500 * scale_y),
+            )
+            hesap_bbox = self.ocr.find_text_on_screen(
+                ["Hesap No", "Hesap no"], region=sidebar_region, confidence=0.5
+            )
+            if not hesap_bbox:
+                self._log_ocr_tokens("'Hesap No' label not found", 0.5)
+                raise AssertionError("'Hesap No' label not found")
+            hx, hy, hw, hh = hesap_bbox
+            button_x = hx + hw + int(40 * scale_x)
+            button_y = hy + hh // 2
+            pyautogui.click(button_x, button_y)
+            logger.info("Clicked account search button")
+            time.sleep(CLICK_DELAY)
+
+            # Select specific account from popup
+            account_popup_region = (
+                window_rect[0] + int(200 * scale_x),
+                window_rect[1] + int(150 * scale_y),
+                int(600 * scale_x),
+                int(400 * scale_y),
+            )
+            account_text = (
+                "6293986 - GARANTİ 6293986 DEMETEVLER MÜSLÜOĞLU ŞUBESİ"
+            )
+            if not self.ocr.wait_for_text(
+                account_text,
+                timeout=MODAL_WAIT_TIMEOUT,
+                region=account_popup_region,
+                confidence=0.5,
+            ):
+                self._log_ocr_tokens("Account list did not appear", 0.5)
+                raise AssertionError("Account list did not appear")
+            account_bbox = self.ocr.find_text_on_screen(
+                account_text,
+                region=account_popup_region,
+                confidence=OCR_CONFIDENCE,
+            )
+            if account_bbox:
+                ax, ay, aw, ah = account_bbox
+                pyautogui.click(ax + aw // 2, ay + ah // 2)
+                logger.info("Selected account %s", account_text)
+            else:
+                self._log_ocr_tokens(
+                    "Account not found in list", OCR_CONFIDENCE
+                )
+                raise AssertionError("Account not found in list")
+            if not self.ocr.click_text(
+                UI_TEXTS["tamam_button"], region=account_popup_region
+            ):
+                self._log_ocr_tokens(
+                    "'Tamam' button not found in account selection",
+                    OCR_CONFIDENCE,
+                )
+                raise AssertionError(
+                    "'Tamam' button not found in account selection"
+                )
+            time.sleep(CLICK_DELAY)
+
+            logger.info("Account selection completed for %s", data_entry["tarih"])
         except Exception as exc:
             logger.exception("Workflow failed for %s: %s", data_entry.get("tarih"), exc)
