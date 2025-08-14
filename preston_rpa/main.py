@@ -84,11 +84,16 @@ def main():
         if error_message is None:
             st.success("Automation finished")
 
-    log_box.text(
-        Path(__file__).with_name("automation.log").read_text()
-        if Path(__file__).with_name("automation.log").exists()
-        else ""
-    )
+    log_path = Path(__file__).with_name("automation.log")
+    if log_path.exists():
+        try:
+            log_content = log_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            st.error(f"Failed to read log file: {exc}")
+            log_content = ""
+    else:
+        log_content = ""
+    log_box.text(log_content)
 
 
 if __name__ == "__main__":
