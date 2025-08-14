@@ -229,10 +229,12 @@ class PrestonRPA:
             )
             dropdown_region = (
                 menu_region[0],
-                menu_region[1] + menu_region[3],
+                menu_region[1] + menu_region[3] + 5,  # 5px padding
                 int(500 * scale_x),
                 int(300 * scale_y),
             )
+            dropdown_screenshot = pyautogui.screenshot(region=dropdown_region)
+            dropdown_screenshot.save("debug_dropdown_region.png")
             logger.info("Menu region: %s", menu_region)
             menu_screenshot = pyautogui.screenshot(region=menu_region)
             menu_screenshot.save("debug_menu_only.png")
@@ -284,19 +286,20 @@ class PrestonRPA:
                     raise AssertionError(
                         "'Finans - İzle' dropdown did not open or 'Banka hesap izleme' not found"
                     )
-                bbox_dropdown = self.ocr.find_text_on_screen(
-                    UI_TEXTS["banka_hesap_izleme"],
-                    region=dropdown_region,
-                    confidence=OCR_CONFIDENCE,
+                dropdown_list_region = dropdown_region
+                option_bbox = self.ocr.find_text_on_screen(
+                    ["Banka hesap izleme"],
+                    region=dropdown_list_region,
+                    confidence=0.4,
                 )
-                if bbox_dropdown:
-                    dx, dy, dw, dh = bbox_dropdown
+                if option_bbox:
+                    dx, dy, dw, dh = option_bbox
                     pyautogui.click(dx + dw // 2, dy + dh // 2)
                     logger.info("Clicked 'Banka hesap izleme' option")
                 else:
                     self._log_ocr_tokens(
                         "'Banka hesap izleme' option not found in dropdown",
-                        OCR_CONFIDENCE,
+                        0.4,
                     )
                     raise AssertionError("'Banka hesap izleme' option not found")
             else:
@@ -308,28 +311,30 @@ class PrestonRPA:
 
             # Click BANKA ribbon icon to open Banka İzleme popup
             bank_region = (
-                window_rect[0] + int(40 * scale_x),
-                window_rect[1] + int(80 * scale_y),
-                int(300 * scale_x),
-                int(180 * scale_y),
+                window_rect[0] + int(10 * scale_x),   # Sol baştan 10px
+                window_rect[1] + int(220 * scale_y),  # Ribbon area
+                int(100 * scale_x),   # Dar width
+                int(80 * scale_y),    # Ribbon height
             )
+            bank_screenshot = pyautogui.screenshot(region=bank_region)
+            bank_screenshot.save("debug_bank_region.png")
             if not self.ocr.wait_for_text(
-                ["Banka", "BANKA"],
-                timeout=5,
+                ["BANKA", "Banka"],
+                timeout=3,
                 region=bank_region,
-                confidence=0.5,
+                confidence=0.3,
             ):
-                self._log_ocr_tokens("'Banka' icon not found", 0.5)
+                self._log_ocr_tokens("'Banka' icon not found", 0.3)
                 raise AssertionError("'Banka' icon not found")
             banka_bbox = self.ocr.find_text_on_screen(
-                ["Banka", "BANKA"], region=bank_region, confidence=OCR_CONFIDENCE
+                ["BANKA", "Banka"], region=bank_region, confidence=0.3
             )
             if banka_bbox:
                 bx, by, bw, bh = banka_bbox
                 pyautogui.click(bx + bw // 2, by + bh // 2)
                 logger.info("Clicked BANKA icon")
             else:
-                self._log_ocr_tokens("'Banka' icon not clickable", OCR_CONFIDENCE)
+                self._log_ocr_tokens("'Banka' icon not clickable", 0.3)
                 raise AssertionError("'Banka' icon not clickable")
 
             # Handle Banka İzleme popup
