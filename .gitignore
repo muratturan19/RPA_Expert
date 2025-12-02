@@ -2,3 +2,12 @@ __pycache__/
 rpa.log
 
 *.xlsx
+# Debug and test artifacts
+debug_screenshots/
+*.png
+*.log
+step*.png
+*_raw.png
+*_processed.png
+*_result.txt
+*_ocr_data.csv
